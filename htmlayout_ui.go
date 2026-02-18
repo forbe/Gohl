@@ -10,6 +10,8 @@ import (
 )
 
 func init() {
+	//take care!  
+	//主goroutine必须锁定在主线程，否则被调试之后，导致HTMLayout崩溃（GUI操作需要在主线程）
 	runtime.LockOSThread()
 }
 
