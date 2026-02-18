@@ -210,8 +210,8 @@ go build -o demo.exe demo.go
 ## 依赖
 
 - Windows 操作系统
-- Go 1.25+
-- HTMLayout DLL (htmlayout.dll)
+- Go 1.20
+- HTMLayout DLL (htmlayout.dll已经打包在Resources.zip中，会自动释放)
 
 ## 许可证
 
