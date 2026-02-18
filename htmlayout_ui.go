@@ -188,6 +188,7 @@ type Window struct {
 	OnButtonStateChanged     ElementHandler
 	OnMenuItemClick          ElementHandler
 	OnHyperlinkClick         ElementHandler
+	OnMinimize               func() bool
 }
 
 func NewWindow(config WindowConfig) *Window {
@@ -279,6 +280,11 @@ func (w *Window) OnCreateCallback(fn func()) *Window {
 
 func (w *Window) GetHwnd() uint32 {
 	return w.hwnd
+}
+
+// 获取窗口图标
+func (w *Window) GetIcon() uintptr {
+	return w.config.Icon
 }
 
 func (w *Window) GetRootElement() *Element {
@@ -478,6 +484,21 @@ func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintpt
 	case WM_DESTROY:
 		postQuitMessage(0)
 		return 0
+
+	// 处理托盘图标消息
+	case 0x0401: // WM_TRAYMSG
+		switch lparam {
+		case 0x0201: // WM_LBUTTONDOWN
+			// 左键点击托盘图标，显示窗口
+			w.Restore()
+			w.Show()
+			return 0
+		case 0x0203: // WM_LBUTTONDBLCLK
+			// 左键双击托盘图标，显示窗口
+			w.Restore()
+			w.Show()
+			return 0
+		}
 	}
 
 	return defWindowProc(uint32(hwnd), msg, wparam, lparam)
@@ -571,6 +592,13 @@ func (w *Window) setupDefaultEventHandler() {
 			switch params.Cmd {
 			case BUTTON_CLICK:
 				if _, hasMin := elem.Attr("-gohl-min"); hasMin {
+					// 检查是否有 OnMinimize 回调
+					if w.OnMinimize != nil {
+						// 如果 OnMinimize 返回 false，则不执行最小化
+						if !w.OnMinimize() {
+							return true
+						}
+					}
 					w.Minimize()
 					return true
 				}
@@ -829,6 +857,11 @@ func (w *Window) SetTitle(title string) {
 func (w *Window) Show() {
 	procShowWindow.Call(uintptr(w.hwnd), 5) // SW_SHOW
 	procUpdateWindow.Call(uintptr(w.hwnd))
+}
+
+// 隐藏窗口
+func (w *Window) Hide() {
+	procShowWindow.Call(uintptr(w.hwnd), 0) // SW_HIDE
 }
 
 func LoadIconFromResource(id int) uintptr {

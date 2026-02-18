@@ -35,7 +35,6 @@ var valueErrorToString = map[VALUE_RESULT]string{
 
 var whitespaceSplitter = regexp.MustCompile(`(\S+)`)
 
-// DomError represents an htmlayout error with an associated
 // dom error code
 type DomError struct {
 	Result  HLDOM_RESULT
@@ -67,14 +66,10 @@ func valuePanic(result uint32, message ...interface{}) {
 	panic(&ValueError{VALUE_RESULT(result), fmt.Sprint(message...)})
 }
 
-// Returns the utf-16 encoding of the utf-8 string s,
-// with a terminating NUL added.
 func stringToUtf16(s string) []uint16 {
 	return utf16.Encode([]rune(s + "\x00"))
 }
 
-// Returns the utf-8 encoding of the utf-16 sequence s,
-// with a terminating NUL removed.
 func utf16ToString(s *uint16) string {
 	if s == nil {
 		panic("null cstring")
@@ -101,8 +96,6 @@ func utf16ToStringLength(s *uint16, length int) string {
 	return string(utf16.Decode(us))
 }
 
-// Returns pointer to the utf-16 encoding of
-// the utf-8 string s, with a terminating NUL added.
 func stringToUtf16Ptr(s string) *uint16 {
 	return &stringToUtf16(s)[0]
 }
@@ -123,11 +116,6 @@ func unuse(handle HELEMENT) {
 	}
 }
 
-/*
-Element
-
-Represents a single DOM element, owns and manages a Handle
-*/
 type Element struct {
 	handle HELEMENT
 }
@@ -183,26 +171,19 @@ func FocusedElement(hwnd uint32) *Element {
 	return nil
 }
 
-// Finalizer method, only to be called from Release or by
-// the Go runtime
 func (e *Element) finalize() {
 	// Detach handlers
 	if attachedHandlers, hasHandlers := eventHandlers[e.handle]; hasHandlers {
 		for _, tag := range attachedHandlers {
 			HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag))
-			// Note: tag.Delete() is called in BEHAVIOR_DETACH, so we don't need to call it here
 		}
 		delete(eventHandlers, e.handle)
 	}
 
-	// Note: We don't call unuse() here because the element may have already been
-	// destroyed by HTMLayout. HTMLayout manages its own reference counting internally.
 	e.handle = BAD_HELEMENT
 }
 
 func (e *Element) Release() {
-	// Unregister the finalizer so that it does not get called by Go
-	// and then explicitly finalize this element
 	runtime.SetFinalizer(e, nil)
 	e.finalize()
 }
@@ -220,10 +201,6 @@ func (e *Element) Equals(other *Element) bool {
 	return other != nil && e.handle == other.handle
 }
 
-// This is the same as AttachHandler, except that behaviors are singleton instances stored
-// in a master map.  They may be shared among many elements since they have no state.
-// The only reason we keep a separate set of the behaviors is so that the event handler
-// dispatch method can tell if an event handler is a behavior or a regular handler.
 func (e *Element) attachBehavior(handler *EventHandler) {
 	tag := cgo.NewHandle(handler)
 	if subscription := handler.Subscription(); subscription == HANDLE_ALL {
@@ -376,8 +353,6 @@ func (e *Element) Hide() *Element {
 	return e
 }
 
-// Functions for querying elements
-
 func (e *Element) Select(selector string) []*Element {
 	selectorBytes := append([]byte(selector), 0)
 	results := make([]*Element, 0, 32)
@@ -389,10 +364,6 @@ func (e *Element) Select(selector string) []*Element {
 	return results
 }
 
-// Searches up the parent chain to find the first element that matches the given selector.
-// Includes the element in the search.  Depth indicates how far the search should progress.
-// Depth = 1 means only consider this element.  Depth = 0 means search all the way up to the
-// root.  Any other positive value of depth limits the length of the search.
 func (e *Element) SelectParentLimit(selector string, depth int) *Element {
 	selectorBytes := append([]byte(selector), 0)
 	var parent uintptr
@@ -409,8 +380,6 @@ func (e *Element) SelectParent(selector string) *Element {
 	return e.SelectParentLimit(selector, 0)
 }
 
-// For delivering programmatic events to this element.
-// Returns true if the event was handled, false otherwise
 func (e *Element) SendEvent(eventCode uint, source *Element, reason uint32) bool {
 	var handled bool = false
 	if ret := HTMLayoutSendEvent(uintptr(e.handle), uint32(eventCode), uintptr(source.handle), uintptr(reason), &handled); ret != HLDOM_OK {
@@ -419,16 +388,11 @@ func (e *Element) SendEvent(eventCode uint, source *Element, reason uint32) bool
 	return handled
 }
 
-// For asynchronously delivering programmatic events to this element.
 func (e *Element) PostEvent(eventCode uint, source *Element, reason uint32) {
 	if ret := HTMLayoutPostEvent(uintptr(e.handle), uint32(eventCode), uintptr(source.handle), uint32(reason)); ret != HLDOM_OK {
 		domPanic(ret, "Failed to post event")
 	}
 }
-
-//
-// DOM structure accessors/modifiers:
-//
 
 func (e *Element) ChildCount() uint {
 	var count uint32
@@ -609,8 +573,6 @@ func (e *Element) CombineUrl(url string, maxLen int) string {
 	return string(utf16.Decode(result))
 }
 
-// Sorts 'count' child elements starting at index 'start'.  Uses comparator to define the
-// order.  Comparator should return -1, or 0, or 1 to indicate less, equal or greater
 func (e *Element) SortChildrenRange(start, count uint, comparator func(*Element, *Element) int) {
 	end := start + count
 	arg := uintptr(unsafe.Pointer(&comparator))
@@ -840,12 +802,6 @@ func (e *Element) AttrCount() uint {
 	return uint(count)
 }
 
-//
-// CSS style attribute accessors/mutators
-//
-
-// Returns the value of the style and a boolean indicating whether or not that style exists.
-// If the boolean is true, then the returned string is valid.
 func (e *Element) Style(key string) (string, bool) {
 	var szValue *uint16
 	keyBytes := append([]byte(key), 0)
@@ -897,11 +853,6 @@ func (e *Element) ClearStyles(key string) {
 	}
 }
 
-//
-// Element state manipulation
-//
-
-// Gets the whole set of state flags for this element
 func (e *Element) StateFlags() uint32 {
 	var state uint32
 	if ret := HTMLayoutGetElementState(uintptr(e.handle), &state); ret != HLDOM_OK {
@@ -910,7 +861,6 @@ func (e *Element) StateFlags() uint32 {
 	return state
 }
 
-// Replaces the whole set of state flags with the specified value
 func (e *Element) SetStateFlags(flags uint32) {
 	shouldUpdate := true
 	if ret := HTMLayoutSetElementState(uintptr(e.handle), flags, ^flags, shouldUpdate); ret != HLDOM_OK {
@@ -918,12 +868,10 @@ func (e *Element) SetStateFlags(flags uint32) {
 	}
 }
 
-// Returns true if the specified flag is "on"
 func (e *Element) State(flag uint32) bool {
 	return e.StateFlags()&flag != 0
 }
 
-// Sets the specified flag to "on" or "off" according to the value of the provided boolean
 func (e *Element) SetState(flag uint32, on bool) {
 	addBits := uint32(0)
 	clearBits := uint32(0)
@@ -937,10 +885,6 @@ func (e *Element) SetState(flag uint32, on bool) {
 		domPanic(ret, "Failed to set element state flag")
 	}
 }
-
-//
-// Functions for retrieving/setting the various dimensions of an element
-//
 
 func (e *Element) Move(x, y int) {
 	if ret := HTMLayoutMoveElement(uintptr(e.handle), int32(x), int32(y)); ret != HLDOM_OK {
@@ -1014,10 +958,6 @@ func (e *Element) MarginBoxSize() (width, height int) {
 	return int(r - l), int(b - t)
 }
 
-//
-// Functions for retrieving/setting the value in widget input controls
-//
-
 type textValueParams struct {
 	MethodId uint32
 	Text     *uint16
@@ -1060,11 +1000,6 @@ func (e *Element) SetValue(value interface{}) error {
 	}
 }
 
-//
-// The following are not strictly wrappers of htmlayout functions, but rather convenience
-// functions that are helpful in common use cases
-//
-
 func (e *Element) Describe() string {
 	s := e.Type()
 	if value, exists := e.Attr("id"); exists {
@@ -1079,8 +1014,6 @@ func (e *Element) Describe() string {
 	return s
 }
 
-// Returns the first of the child elements matching the selector.  If no elements
-// match, the function panics
 func (e *Element) SelectFirst(selector string) *Element {
 	results := e.Select(selector)
 	if len(results) == 0 {
@@ -1089,8 +1022,6 @@ func (e *Element) SelectFirst(selector string) *Element {
 	return results[0]
 }
 
-// Returns the only child element that matches the selector.  If no elements match
-// or more than one element matches, the function panics
 func (e *Element) SelectUnique(selector string) *Element {
 	results := e.Select(selector)
 	if len(results) == 0 {
@@ -1101,18 +1032,10 @@ func (e *Element) SelectUnique(selector string) *Element {
 	return results[0]
 }
 
-// A wrapper of SelectUnique that auto-prepends a hash to the provided id.
-// Useful when selecting elements base on a programmatically retrieved id (which does
-// not already have the hash on it)
 func (e *Element) SelectId(id string) *Element {
 	return e.SelectUnique(fmt.Sprintf("#%s", id))
 }
 
-//
-// Functions for manipulating the set of classes applied to this element:
-//
-
-// Returns true if the specified class is among those listed in the "class" attribute.
 func (e *Element) HasClass(class string) bool {
 	if classList, exists := e.Attr("class"); !exists {
 		return false
@@ -1128,8 +1051,6 @@ func (e *Element) HasClass(class string) bool {
 	return false
 }
 
-// Adds the specified class to the classes listed in the "class" attribute, or does nothing
-// if this class is already included in the list.
 func (e *Element) AddClass(class string) {
 	if classList, exists := e.Attr("class"); !exists {
 		e.SetAttr("class", class)
@@ -1146,8 +1067,6 @@ func (e *Element) AddClass(class string) {
 	}
 }
 
-// Removes the specified class from the classes listed in the "class" attribute, or does nothing
-// if this class is not included in the list.
 func (e *Element) RemoveClass(class string) {
 	if classList, exists := e.Attr("class"); exists {
 		if classes := whitespaceSplitter.FindAllString(classList, -1); classes != nil {

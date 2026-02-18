@@ -174,15 +174,13 @@ type MethodParams struct {
 	MethodId uint32
 }
 
-// TODO: Add all the structures derived from MethodParams here...
-
 type DataArrivedParams struct {
 	Initiator HELEMENT
 	Data      *byte
 	DataSize  uint32
 	DataType  uint32
 	Status    uint32
-	Uri       *uint16 // Wide character string
+	Uri       *uint16
 }
 
 type ScrollParams struct {
@@ -511,8 +509,6 @@ const (
 	HTMLAYOUT_TRANSPARENT_WINDOW = 6
 )
 
-// Call this from your NotifyHandler.HandleLoadData method if you want htmlayout to
-// process the data right away so you don't have to provide a buffer in the NmhlLoadData structure.
 func DataReady(hwnd uint32, uri *uint16, data []byte) bool {
 	return HTMLayoutDataReady(uintptr(hwnd), uri, &data[0], uint32(len(data)))
 }
@@ -569,7 +565,6 @@ func DetachWindowEventHandler(hwnd uint32) {
 
 func AttachNotifyHandler(hwnd uint32, handler *NotifyHandler) {
 	key := uintptr(hwnd)
-	// Overwrite if it exists
 	notifyHandlers[key] = handler
 	HTMLayoutSetCallback(key, uintptr(goNotifyProc), key)
 }

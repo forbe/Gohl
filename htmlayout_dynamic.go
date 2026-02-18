@@ -13,7 +13,9 @@ var (
 )
 
 func init() {
+	// 初始化资源目录
 	extractResources()
+	// 初始化 htmlayout 库
 	initHtmlayoutLib()
 }
 
@@ -42,7 +44,6 @@ func initHtmlayoutLib() {
 	initHtmlayoutFunctions()
 }
 
-// 全局函数地址
 var (
 	procHTMLayoutProcND                   *syscall.Proc
 	procHTMLayoutLoadHtmlEx               *syscall.Proc
@@ -183,7 +184,6 @@ func mustFindProc(name string) *syscall.Proc {
 	return proc
 }
 
-// HTMLayoutProcND 调用 HTMLayoutProcND 函数
 func HTMLayoutProcND(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr, handled *bool) int {
 	if procHTMLayoutProcND == nil {
 		return 0
@@ -192,7 +192,6 @@ func HTMLayoutProcND(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr, h
 	return int(ret)
 }
 
-// HTMLayoutLoadHtmlEx 调用 HTMLayoutLoadHtmlEx 函数
 func HTMLayoutLoadHtmlEx(hwnd uintptr, data *byte, dataSize uint32, baseUrl *uint16) bool {
 	if procHTMLayoutLoadHtmlEx == nil {
 		return false
@@ -201,7 +200,6 @@ func HTMLayoutLoadHtmlEx(hwnd uintptr, data *byte, dataSize uint32, baseUrl *uin
 	return ret != 0
 }
 
-// HTMLayoutLoadFile 调用 HTMLayoutLoadFile 函数
 func HTMLayoutLoadFile(hwnd uintptr, uri *uint16) bool {
 	if procHTMLayoutLoadFile == nil {
 		return false
@@ -210,7 +208,6 @@ func HTMLayoutLoadFile(hwnd uintptr, uri *uint16) bool {
 	return ret != 0
 }
 
-// HTMLayoutSetOption 调用 HTMLayoutSetOption 函数
 func HTMLayoutSetOption(hwnd uintptr, option uint32, value uint32) bool {
 	if procHTMLayoutSetOption == nil {
 		return false
@@ -219,7 +216,6 @@ func HTMLayoutSetOption(hwnd uintptr, option uint32, value uint32) bool {
 	return ret != 0
 }
 
-// HTMLayoutDataReady 调用 HTMLayoutDataReady 函数
 func HTMLayoutDataReady(hwnd uintptr, uri *uint16, data *byte, dataSize uint32) bool {
 	if procHTMLayoutDataReady == nil {
 		return false
@@ -228,7 +224,6 @@ func HTMLayoutDataReady(hwnd uintptr, uri *uint16, data *byte, dataSize uint32) 
 	return ret != 0
 }
 
-// HTMLayoutWindowAttachEventHandler 调用 HTMLayoutWindowAttachEventHandler 函数
 func HTMLayoutWindowAttachEventHandler(hwnd uintptr, proc uintptr, tag uintptr, subscription uint32) int {
 	if procHTMLayoutWindowAttachEventHandler == nil {
 		return 0
@@ -237,7 +232,6 @@ func HTMLayoutWindowAttachEventHandler(hwnd uintptr, proc uintptr, tag uintptr, 
 	return int(ret)
 }
 
-// HTMLayoutWindowDetachEventHandler 调用 HTMLayoutWindowDetachEventHandler 函数
 func HTMLayoutWindowDetachEventHandler(hwnd uintptr, proc uintptr, tag uintptr) int {
 	if procHTMLayoutWindowDetachEventHandler == nil {
 		return 0
@@ -246,7 +240,6 @@ func HTMLayoutWindowDetachEventHandler(hwnd uintptr, proc uintptr, tag uintptr) 
 	return int(ret)
 }
 
-// HTMLayoutSetCallback 调用 HTMLayoutSetCallback 函数
 func HTMLayoutSetCallback(hwnd uintptr, callback uintptr, param uintptr) {
 	if procHTMLayoutSetCallback == nil {
 		return
@@ -254,7 +247,6 @@ func HTMLayoutSetCallback(hwnd uintptr, callback uintptr, param uintptr) {
 	procHTMLayoutSetCallback.Call(hwnd, callback, param)
 }
 
-// HTMLayoutGetRootElement 调用 HTMLayoutGetRootElement 函数
 func HTMLayoutGetRootElement(hwnd uintptr, handle *uintptr) int {
 	if procHTMLayoutGetRootElement == nil {
 		return -1
@@ -263,7 +255,6 @@ func HTMLayoutGetRootElement(hwnd uintptr, handle *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutCreateElement 调用 HTMLayoutCreateElement 函数
 func HTMLayoutCreateElement(tag *byte, text *uint16, handle *uintptr) int {
 	if procHTMLayoutCreateElement == nil {
 		return -1
@@ -272,7 +263,6 @@ func HTMLayoutCreateElement(tag *byte, text *uint16, handle *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutFindElement 调用 HTMLayoutFindElement 函数
 func HTMLayoutFindElement(hwnd uintptr, pt struct{ X, Y int32 }, handle *uintptr) int {
 	if procHTMLayoutFindElement == nil {
 		return -1
@@ -282,7 +272,6 @@ func HTMLayoutFindElement(hwnd uintptr, pt struct{ X, Y int32 }, handle *uintptr
 	return int(ret)
 }
 
-// HTMLayoutGetFocusElement 调用 HTMLayoutGetFocusElement 函数
 func HTMLayoutGetFocusElement(hwnd uintptr, handle *uintptr) int {
 	if procHTMLayoutGetFocusElement == nil {
 		return -1
@@ -291,7 +280,6 @@ func HTMLayoutGetFocusElement(hwnd uintptr, handle *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutAttachEventHandler 调用 HTMLayoutAttachEventHandler 函数
 func HTMLayoutAttachEventHandler(handle uintptr, proc uintptr, tag uintptr) int {
 	if procHTMLayoutAttachEventHandler == nil {
 		return -1
@@ -300,7 +288,6 @@ func HTMLayoutAttachEventHandler(handle uintptr, proc uintptr, tag uintptr) int 
 	return int(ret)
 }
 
-// HTMLayoutAttachEventHandlerEx 调用 HTMLayoutAttachEventHandlerEx 函数
 func HTMLayoutAttachEventHandlerEx(handle uintptr, proc uintptr, tag uintptr, subscription uint32) int {
 	if procHTMLayoutAttachEventHandlerEx == nil {
 		return -1
@@ -309,7 +296,6 @@ func HTMLayoutAttachEventHandlerEx(handle uintptr, proc uintptr, tag uintptr, su
 	return int(ret)
 }
 
-// HTMLayoutDetachEventHandler 调用 HTMLayoutDetachEventHandler 函数
 func HTMLayoutDetachEventHandler(handle uintptr, proc uintptr, tag uintptr) int {
 	if procHTMLayoutDetachEventHandler == nil {
 		return -1
@@ -318,7 +304,6 @@ func HTMLayoutDetachEventHandler(handle uintptr, proc uintptr, tag uintptr) int 
 	return int(ret)
 }
 
-// HTMLayoutUpdateElementEx 调用 HTMLayoutUpdateElementEx 函数
 func HTMLayoutUpdateElementEx(handle uintptr, flags uint32) int {
 	if procHTMLayoutUpdateElementEx == nil {
 		return -1
@@ -327,7 +312,6 @@ func HTMLayoutUpdateElementEx(handle uintptr, flags uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutSetCapture 调用 HTMLayoutSetCapture 函数
 func HTMLayoutSetCapture(handle uintptr) int {
 	if procHTMLayoutSetCapture == nil {
 		return -1
@@ -336,7 +320,6 @@ func HTMLayoutSetCapture(handle uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutShowPopup 调用 HTMLayoutShowPopup 函数
 func HTMLayoutShowPopup(popupHandle uintptr, anchorHandle uintptr, placement uint32) int {
 	if procHTMLayoutShowPopup == nil {
 		return -1
@@ -345,7 +328,6 @@ func HTMLayoutShowPopup(popupHandle uintptr, anchorHandle uintptr, placement uin
 	return int(ret)
 }
 
-// HTMLayoutShowPopupAt 调用 HTMLayoutShowPopupAt 函数
 func HTMLayoutShowPopupAt(popupHandle uintptr, pt struct{ X, Y int32 }, mode uint32) int {
 	if procHTMLayoutShowPopupAt == nil {
 		return -1
@@ -355,7 +337,6 @@ func HTMLayoutShowPopupAt(popupHandle uintptr, pt struct{ X, Y int32 }, mode uin
 	return int(ret)
 }
 
-// HTMLayoutHidePopup 调用 HTMLayoutHidePopup 函数
 func HTMLayoutHidePopup(popupHandle uintptr) int {
 	if procHTMLayoutHidePopup == nil {
 		return -1
@@ -364,7 +345,6 @@ func HTMLayoutHidePopup(popupHandle uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutSelectElements 调用 HTMLayoutSelectElements 函数
 func HTMLayoutSelectElements(handle uintptr, selector *byte, callback uintptr, param uintptr) int {
 	if procHTMLayoutSelectElements == nil {
 		return -1
@@ -373,7 +353,6 @@ func HTMLayoutSelectElements(handle uintptr, selector *byte, callback uintptr, p
 	return int(ret)
 }
 
-// HTMLayoutSelectParent 调用 HTMLayoutSelectParent 函数
 func HTMLayoutSelectParent(handle uintptr, selector *byte, depth uint32, parent *uintptr) int {
 	if procHTMLayoutSelectParent == nil {
 		return -1
@@ -382,7 +361,6 @@ func HTMLayoutSelectParent(handle uintptr, selector *byte, depth uint32, parent 
 	return int(ret)
 }
 
-// HTMLayoutSendEvent 调用 HTMLayoutSendEvent 函数
 func HTMLayoutSendEvent(handle uintptr, eventCode uint32, sourceHandle uintptr, reason uintptr, handled *bool) int {
 	if procHTMLayoutSendEvent == nil {
 		return -1
@@ -391,7 +369,6 @@ func HTMLayoutSendEvent(handle uintptr, eventCode uint32, sourceHandle uintptr, 
 	return int(ret)
 }
 
-// HTMLayoutPostEvent 调用 HTMLayoutPostEvent 函数
 func HTMLayoutPostEvent(handle uintptr, eventCode uint32, sourceHandle uintptr, reason uint32) int {
 	if procHTMLayoutPostEvent == nil {
 		return -1
@@ -400,7 +377,6 @@ func HTMLayoutPostEvent(handle uintptr, eventCode uint32, sourceHandle uintptr, 
 	return int(ret)
 }
 
-// HTMLayoutGetChildrenCount 调用 HTMLayoutGetChildrenCount 函数
 func HTMLayoutGetChildrenCount(handle uintptr, count *uint32) int {
 	if procHTMLayoutGetChildrenCount == nil {
 		return -1
@@ -409,7 +385,6 @@ func HTMLayoutGetChildrenCount(handle uintptr, count *uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutGetNthChild 调用 HTMLayoutGetNthChild 函数
 func HTMLayoutGetNthChild(handle uintptr, index uint32, child *uintptr) int {
 	if procHTMLayoutGetNthChild == nil {
 		return -1
@@ -418,7 +393,6 @@ func HTMLayoutGetNthChild(handle uintptr, index uint32, child *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutGetElementIndex 调用 HTMLayoutGetElementIndex 函数
 func HTMLayoutGetElementIndex(handle uintptr, index *int32) int {
 	if procHTMLayoutGetElementIndex == nil {
 		return -1
@@ -427,7 +401,6 @@ func HTMLayoutGetElementIndex(handle uintptr, index *int32) int {
 	return int(ret)
 }
 
-// HTMLayoutGetParentElement 调用 HTMLayoutGetParentElement 函数
 func HTMLayoutGetParentElement(handle uintptr, parent *uintptr) int {
 	if procHTMLayoutGetParentElement == nil {
 		return -1
@@ -436,7 +409,6 @@ func HTMLayoutGetParentElement(handle uintptr, parent *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutInsertElement 调用 HTMLayoutInsertElement 函数
 func HTMLayoutInsertElement(childHandle uintptr, parentHandle uintptr, index uint32) int {
 	if procHTMLayoutInsertElement == nil {
 		return -1
@@ -445,7 +417,6 @@ func HTMLayoutInsertElement(childHandle uintptr, parentHandle uintptr, index uin
 	return int(ret)
 }
 
-// HTMLayoutDetachElement 调用 HTMLayoutDetachElement 函数
 func HTMLayoutDetachElement(handle uintptr) int {
 	if procHTMLayoutDetachElement == nil {
 		return -1
@@ -454,7 +425,6 @@ func HTMLayoutDetachElement(handle uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutDeleteElement 调用 HTMLayoutDeleteElement 函数
 func HTMLayoutDeleteElement(handle uintptr) int {
 	if procHTMLayoutDeleteElement == nil {
 		return -1
@@ -463,7 +433,6 @@ func HTMLayoutDeleteElement(handle uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutCloneElement 调用 HTMLayoutCloneElement 函数
 func HTMLayoutCloneElement(handle uintptr, clone *uintptr) int {
 	if procHTMLayoutCloneElement == nil {
 		return -1
@@ -472,7 +441,6 @@ func HTMLayoutCloneElement(handle uintptr, clone *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutSwapElements 调用 HTMLayoutSwapElements 函数
 func HTMLayoutSwapElements(handle1 uintptr, handle2 uintptr) int {
 	if procHTMLayoutSwapElements == nil {
 		return -1
@@ -481,7 +449,6 @@ func HTMLayoutSwapElements(handle1 uintptr, handle2 uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutSetEventRoot 调用 HTMLayoutSetEventRoot 函数
 func HTMLayoutSetEventRoot(handle uintptr, prevRoot *uintptr) int {
 	if procHTMLayoutSetEventRoot == nil {
 		return -1
@@ -490,7 +457,6 @@ func HTMLayoutSetEventRoot(handle uintptr, prevRoot *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutScrollToView 调用 HTMLayoutScrollToView 函数
 func HTMLayoutScrollToView(handle uintptr, flags uint32) int {
 	if procHTMLayoutScrollToView == nil {
 		return -1
@@ -499,7 +465,6 @@ func HTMLayoutScrollToView(handle uintptr, flags uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutGetElementUID 调用 HTMLayoutGetElementUID 函数
 func HTMLayoutGetElementUID(handle uintptr, uid *uint32) int {
 	if procHTMLayoutGetElementUID == nil {
 		return -1
@@ -508,7 +473,6 @@ func HTMLayoutGetElementUID(handle uintptr, uid *uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutGetElementByUID 调用 HTMLayoutGetElementByUID 函数
 func HTMLayoutGetElementByUID(hwnd uintptr, uid uint32, handle *uintptr) int {
 	if procHTMLayoutGetElementByUID == nil {
 		return -1
@@ -517,7 +481,6 @@ func HTMLayoutGetElementByUID(hwnd uintptr, uid uint32, handle *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutCallBehaviorMethod 调用 HTMLayoutCallBehaviorMethod 函数
 func HTMLayoutCallBehaviorMethod(handle uintptr, params *uintptr) int {
 	if procHTMLayoutCallBehaviorMethod == nil {
 		return -1
@@ -526,7 +489,6 @@ func HTMLayoutCallBehaviorMethod(handle uintptr, params *uintptr) int {
 	return int(ret)
 }
 
-// HTMLayoutCombineURL 调用 HTMLayoutCombineURL 函数
 func HTMLayoutCombineURL(handle uintptr, buffer *uint16, maxLen uint32) {
 	if procHTMLayoutCombineURL == nil {
 		return
@@ -534,80 +496,75 @@ func HTMLayoutCombineURL(handle uintptr, buffer *uint16, maxLen uint32) {
 	procHTMLayoutCombineURL.Call(handle, uintptr(unsafe.Pointer(buffer)), uintptr(maxLen))
 }
 
-// HTMLayoutSortElements 调用 HTMLayoutSortElements 函数
-func HTMLayoutSortElements(handle uintptr, start uint32, end uint32, comparator uintptr, arg uintptr) int {
+func HTMLayoutSortElements(handle uintptr, start uint32, end uint32, comparator uintptr, param uintptr) int {
 	if procHTMLayoutSortElements == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutSortElements.Call(handle, uintptr(start), uintptr(end), comparator, arg)
+	ret, _, _ := procHTMLayoutSortElements.Call(handle, uintptr(start), uintptr(end), comparator, param)
 	return int(ret)
 }
 
-// HTMLayoutSetTimerEx 调用 HTMLayoutSetTimerEx 函数
-func HTMLayoutSetTimerEx(handle uintptr, ms uint32, timerId uintptr) int {
+func HTMLayoutSetTimerEx(handle uintptr, milliseconds uint32, timerId uintptr) int {
 	if procHTMLayoutSetTimerEx == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutSetTimerEx.Call(handle, uintptr(ms), timerId)
+	ret, _, _ := procHTMLayoutSetTimerEx.Call(handle, uintptr(milliseconds), timerId)
 	return int(ret)
 }
 
-// HTMLayoutGetElementHwnd 调用 HTMLayoutGetElementHwnd 函数
-func HTMLayoutGetElementHwnd(handle uintptr, hwnd *uintptr, flags int32) int {
+func HTMLayoutGetElementHwnd(handle uintptr, hwnd *uintptr, rootWindow int32) int {
 	if procHTMLayoutGetElementHwnd == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetElementHwnd.Call(handle, uintptr(unsafe.Pointer(hwnd)), uintptr(flags))
+	ret, _, _ := procHTMLayoutGetElementHwnd.Call(handle, uintptr(unsafe.Pointer(hwnd)), uintptr(rootWindow))
 	return int(ret)
 }
 
-// HTMLayoutGetElementHtml 调用 HTMLayoutGetElementHtml 函数
-func HTMLayoutGetElementHtml(handle uintptr, data **byte, asText bool) int {
+func HTMLayoutGetElementHtml(handle uintptr, html **byte, outer bool) int {
 	if procHTMLayoutGetElementHtml == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetElementHtml.Call(handle, uintptr(unsafe.Pointer(data)), uintptr(boolToInt(asText)))
+	var outerInt int32
+	if outer {
+		outerInt = 1
+	}
+	ret, _, _ := procHTMLayoutGetElementHtml.Call(handle, uintptr(unsafe.Pointer(html)), uintptr(outerInt))
 	return int(ret)
 }
 
-// HTMLayoutGetElementType 调用 HTMLayoutGetElementType 函数
-func HTMLayoutGetElementType(handle uintptr, typeName **byte) int {
+func HTMLayoutGetElementType(handle uintptr, tag **byte) int {
 	if procHTMLayoutGetElementType == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetElementType.Call(handle, uintptr(unsafe.Pointer(typeName)))
+	ret, _, _ := procHTMLayoutGetElementType.Call(handle, uintptr(unsafe.Pointer(tag)))
 	return int(ret)
 }
 
-// HTMLayoutSetElementHtml 调用 HTMLayoutSetElementHtml 函数
-func HTMLayoutSetElementHtml(handle uintptr, html *byte, htmlSize uint32, mode uint32) int {
+func HTMLayoutSetElementHtml(handle uintptr, html *byte, htmlLength uint32, where uint32) int {
 	if procHTMLayoutSetElementHtml == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutSetElementHtml.Call(handle, uintptr(unsafe.Pointer(html)), uintptr(htmlSize), uintptr(mode))
+	ret, _, _ := procHTMLayoutSetElementHtml.Call(handle, uintptr(unsafe.Pointer(html)), uintptr(htmlLength), uintptr(where))
 	return int(ret)
 }
 
-// HTMLayoutSetElementInnerText 调用 HTMLayoutSetElementInnerText 函数
-func HTMLayoutSetElementInnerText(handle uintptr, text *byte, textSize uint32) int {
+func HTMLayoutSetElementInnerText(handle uintptr, text *byte, textLength uint32) int {
 	if procHTMLayoutSetElementInnerText == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutSetElementInnerText.Call(handle, uintptr(unsafe.Pointer(text)), uintptr(textSize))
+	ret, _, _ := procHTMLayoutSetElementInnerText.Call(handle, uintptr(unsafe.Pointer(text)), uintptr(textLength))
 	return int(ret)
 }
 
-// HTMLayoutGetElementInnerText 调用 HTMLayoutGetElementInnerText 函数
-func HTMLayoutGetElementInnerText(handle uintptr, data **byte) int {
+func HTMLayoutGetElementInnerText(handle uintptr, text **byte) int {
 	if procHTMLayoutGetElementInnerText == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetElementInnerText.Call(handle, uintptr(unsafe.Pointer(data)))
+	ret, _, _ := procHTMLayoutGetElementInnerText.Call(handle, uintptr(unsafe.Pointer(text)))
 	return int(ret)
 }
 
-// HTMLayoutGetAttributeByName 调用 HTMLayoutGetAttributeByName 函数
-func HTMLayoutGetAttributeByName(handle uintptr, name *byte, value **uint16) int {
+func HTMLayoutGetAttributeByName(handle uintptr, name *byte, value **byte) int {
 	if procHTMLayoutGetAttributeByName == nil {
 		return -1
 	}
@@ -615,7 +572,6 @@ func HTMLayoutGetAttributeByName(handle uintptr, name *byte, value **uint16) int
 	return int(ret)
 }
 
-// HTMLayoutSetAttributeByName 调用 HTMLayoutSetAttributeByName 函数
 func HTMLayoutSetAttributeByName(handle uintptr, name *byte, value *uint16) int {
 	if procHTMLayoutSetAttributeByName == nil {
 		return -1
@@ -624,16 +580,14 @@ func HTMLayoutSetAttributeByName(handle uintptr, name *byte, value *uint16) int 
 	return int(ret)
 }
 
-// HTMLayoutGetNthAttribute 调用 HTMLayoutGetNthAttribute 函数
-func HTMLayoutGetNthAttribute(handle uintptr, index uint32, name **byte, value **uint16) int {
+func HTMLayoutGetNthAttribute(handle uintptr, n uint32, name **byte, value **byte) int {
 	if procHTMLayoutGetNthAttribute == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetNthAttribute.Call(handle, uintptr(index), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)))
+	ret, _, _ := procHTMLayoutGetNthAttribute.Call(handle, uintptr(n), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)))
 	return int(ret)
 }
 
-// HTMLayoutGetAttributeCount 调用 HTMLayoutGetAttributeCount 函数
 func HTMLayoutGetAttributeCount(handle uintptr, count *uint32) int {
 	if procHTMLayoutGetAttributeCount == nil {
 		return -1
@@ -642,8 +596,7 @@ func HTMLayoutGetAttributeCount(handle uintptr, count *uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutGetStyleAttribute 调用 HTMLayoutGetStyleAttribute 函数
-func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **uint16) int {
+func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **byte) int {
 	if procHTMLayoutGetStyleAttribute == nil {
 		return -1
 	}
@@ -651,8 +604,7 @@ func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **uint16) int 
 	return int(ret)
 }
 
-// HTMLayoutSetStyleAttribute 调用 HTMLayoutSetStyleAttribute 函数
-func HTMLayoutSetStyleAttribute(handle uintptr, name *byte, value *uint16) int {
+func HTMLayoutSetStyleAttribute(handle uintptr, name *byte, value *byte) int {
 	if procHTMLayoutSetStyleAttribute == nil {
 		return -1
 	}
@@ -660,7 +612,6 @@ func HTMLayoutSetStyleAttribute(handle uintptr, name *byte, value *uint16) int {
 	return int(ret)
 }
 
-// HTMLayoutGetElementState 调用 HTMLayoutGetElementState 函数
 func HTMLayoutGetElementState(handle uintptr, state *uint32) int {
 	if procHTMLayoutGetElementState == nil {
 		return -1
@@ -669,43 +620,42 @@ func HTMLayoutGetElementState(handle uintptr, state *uint32) int {
 	return int(ret)
 }
 
-// HTMLayoutSetElementState 调用 HTMLayoutSetElementState 函数
-func HTMLayoutSetElementState(handle uintptr, addBits uint32, clearBits uint32, shouldUpdate bool) int {
+func HTMLayoutSetElementState(handle uintptr, stateToSet uint32, stateToClear uint32, raiseEvent bool) int {
 	if procHTMLayoutSetElementState == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutSetElementState.Call(handle, uintptr(addBits), uintptr(clearBits), uintptr(boolToInt(shouldUpdate)))
+	var raiseEventInt int32
+	if raiseEvent {
+		raiseEventInt = 1
+	}
+	ret, _, _ := procHTMLayoutSetElementState.Call(handle, uintptr(stateToSet), uintptr(stateToClear), uintptr(raiseEventInt))
 	return int(ret)
 }
 
-// HTMLayoutMoveElement 调用 HTMLayoutMoveElement 函数
-func HTMLayoutMoveElement(handle uintptr, x int32, y int32) int {
+func HTMLayoutMoveElement(handle uintptr, x int32, y int32, pos uint32) int {
 	if procHTMLayoutMoveElement == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutMoveElement.Call(handle, uintptr(x), uintptr(y))
+	ret, _, _ := procHTMLayoutMoveElement.Call(handle, uintptr(x), uintptr(y), uintptr(pos))
 	return int(ret)
 }
 
-// HTMLayoutMoveElementEx 调用 HTMLayoutMoveElementEx 函数
-func HTMLayoutMoveElementEx(handle uintptr, x int32, y int32, w int32, h int32) int {
+func HTMLayoutMoveElementEx(handle uintptr, x int32, y int32, width int32, height int32, pos uint32) int {
 	if procHTMLayoutMoveElementEx == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutMoveElementEx.Call(handle, uintptr(x), uintptr(y), uintptr(w), uintptr(h))
+	ret, _, _ := procHTMLayoutMoveElementEx.Call(handle, uintptr(x), uintptr(y), uintptr(width), uintptr(height), uintptr(pos))
 	return int(ret)
 }
 
-// HTMLayoutGetElementLocation 调用 HTMLayoutGetElementLocation 函数
-func HTMLayoutGetElementLocation(handle uintptr, rect *struct{ Left, Top, Right, Bottom int32 }, flags uint32) int {
+func HTMLayoutGetElementLocation(handle uintptr, location *Rect, areas uint32) int {
 	if procHTMLayoutGetElementLocation == nil {
 		return -1
 	}
-	ret, _, _ := procHTMLayoutGetElementLocation.Call(handle, uintptr(unsafe.Pointer(rect)), uintptr(flags))
+	ret, _, _ := procHTMLayoutGetElementLocation.Call(handle, uintptr(unsafe.Pointer(location)), uintptr(areas))
 	return int(ret)
 }
 
-// HTMLayout_UseElement 调用 HTMLayout_UseElement 函数
 func HTMLayout_UseElement(handle uintptr) int {
 	if procHTMLayout_UseElement == nil {
 		return -1
@@ -714,18 +664,10 @@ func HTMLayout_UseElement(handle uintptr) int {
 	return int(ret)
 }
 
-// HTMLayout_UnuseElement 调用 HTMLayout_UnuseElement 函数
 func HTMLayout_UnuseElement(handle uintptr) int {
 	if procHTMLayout_UnuseElement == nil {
 		return -1
 	}
 	ret, _, _ := procHTMLayout_UnuseElement.Call(handle)
 	return int(ret)
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
