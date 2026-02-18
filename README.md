@@ -209,6 +209,8 @@ go build -o examples/demo.exe ./examples
 ./demo.exe
 ```
 
+![DEMO](https://github.com/forbe/Gohl/blob/main/ScreenShot.png?raw=true)
+
 ## 依赖
 
 - Windows 操作系统
@@ -217,7 +219,7 @@ go build -o examples/demo.exe ./examples
 
 ## 许可证
 
-MIT License
+LGPL V3 License （遵循HTMLayout）
 
 ## 致谢
 
