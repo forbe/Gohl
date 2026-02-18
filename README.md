@@ -217,7 +217,7 @@ go build -o examples/demo.exe ./examples
 
 ## 许可证
 
-MIT License
+LGPL V3 License （遵循HTMLayout）
 
 ## 致谢
 
