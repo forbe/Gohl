@@ -1,6 +1,6 @@
 # Gohl
 
-Go 语言 HTMLayout 绑定库，用于构建基于 HTML/CSS 的现代桌面应用程序界面。
+Go 语言 HTMLayout 绑定库，用于构建基于 HTML/CSS 的现代桌面应用程序界面(支持win7、无边框窗口、圆角窗口等)。
 
 ## 简介
 
@@ -9,6 +9,8 @@ Gohl 是 [HTMLayout](https://terrainformatica.com/htmlayout/) 引擎的 Go 语�
 ## 特性
 
 - **HTML/CSS 渲染** - 使用标准的 HTML 和 CSS 构建界面
+- **No CGO** - 完全的syscall调用，高性能，不挑编译环境
+- **独立编译** 内置HTMLayout.dll和阿里巴巴普惠体(自包含于resources.zip)，编译会独立生成exe文件，无需显式依赖HTMLayout.dll
 - **无边框窗口** - 支持自定义标题栏和窗口控制
 - **圆角窗口** - 支持设置窗口圆角半径
 - **内置 Behaviors** - 提供 tabs、light-box-dialog、hyperlink 等常用组件行为
@@ -203,7 +205,7 @@ gw.SetTimer(2000, func() {
 
 ```bash
 cd examples
-go build -o demo.exe demo.go
+go build -o examples/demo.exe ./examples
 ./demo.exe
 ```
 
