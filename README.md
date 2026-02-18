@@ -22,7 +22,7 @@ Gohl 是 [HTMLayout](https://terrainformatica.com/htmlayout/) 引擎的 Go 语�
 ## 安装
 
 ```bash
-go get github.com/yourusername/gohl
+go get github.com/forbe/Gohl
 ```
 
 ## 快速开始
@@ -31,7 +31,7 @@ go get github.com/yourusername/gohl
 package main
 
 import (
-    "gohl"
+    "github.com/forbe/Gohl"
 )
 
 func main() {
