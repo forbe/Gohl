@@ -10,9 +10,36 @@ import (
 )
 
 func init() {
-	//take care!  
+	//take care!
 	//主goroutine必须锁定在主线程，否则被调度之后（在go的调度度下，主goroutine也不一定总是运行在主线程），会导致HTMLayout崩溃（GUI操作需要在主线程）
 	runtime.LockOSThread()
+
+	// 设置 DPI 感知，防止在高 DPI 显示器上自动缩放
+	setDpiAware()
+}
+
+// setDpiAware 设置进程 DPI 感知模式
+func setDpiAware() {
+	// 尝试使用 SetProcessDpiAwarenessContext (Windows 10 1703+)
+	user32 := syscall.NewLazyDLL("user32.dll")
+	if proc := user32.NewProc("SetProcessDpiAwarenessContext"); proc != nil {
+		// DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+		proc.Call(uintptr(^uintptr(3))) // -4 的补码表示
+		return
+	}
+
+	// 回退到 SetProcessDpiAwareness (Windows 8.1+)
+	shcore := syscall.NewLazyDLL("shcore.dll")
+	if proc := shcore.NewProc("SetProcessDpiAwareness"); proc != nil {
+		// PROCESS_PER_MONITOR_DPI_AWARE = 2
+		proc.Call(2)
+		return
+	}
+
+	// 回退到 SetProcessDPIAware (Windows Vista+)
+	if proc := user32.NewProc("SetProcessDPIAware"); proc != nil {
+		proc.Call()
+	}
 }
 
 var (
@@ -280,11 +307,10 @@ func (w *Window) OnCreateCallback(fn func()) *Window {
 	return w
 }
 
-func (w *Window) GetHwnd() uint32 {
-	return w.hwnd
+func (w *Window) GetHwnd() uintptr {
+	return uintptr(w.hwnd)
 }
 
-// 获取窗口图标
 func (w *Window) GetIcon() uintptr {
 	return w.config.Icon
 }
