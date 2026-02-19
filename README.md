@@ -31,7 +31,7 @@ go get github.com/forbe/Gohl
 package main
 
 import (
-    "github.com/forbe/Gohl"
+    "github.com/forbe/gohl"
 )
 
 func main() {
