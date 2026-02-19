@@ -100,6 +100,24 @@ func stringToUtf16Ptr(s string) *uint16 {
 	return &stringToUtf16(s)[0]
 }
 
+func stringToBytePtr(s string) *byte {
+	return &append([]byte(s), 0)[0]
+}
+
+func bytePtrToString(s *byte) string {
+	if s == nil {
+		return ""
+	}
+	us := make([]byte, 0, 256)
+	for p := uintptr(unsafe.Pointer(s)); ; p++ {
+		u := *(*byte)(unsafe.Pointer(p))
+		if u == 0 {
+			return string(us)
+		}
+		us = append(us, u)
+	}
+}
+
 func use(handle HELEMENT) {
 	if dr := HTMLayout_UseElement(uintptr(handle)); dr != HLDOM_OK {
 		domPanic(dr, "UseElement")
@@ -779,13 +797,7 @@ func (e *Element) AttrByIndex(index int) (string, string) {
 	}
 	name := ""
 	if szName != nil {
-		name = string(unsafe.Slice(szName, 256))
-		for i, c := range name {
-			if c == 0 {
-				name = name[:i]
-				break
-			}
-		}
+		name = bytePtrToString(szName)
 	}
 	value := ""
 	if szValue != nil {
@@ -887,19 +899,19 @@ func (e *Element) SetState(flag uint32, on bool) {
 }
 
 func (e *Element) Move(x, y int) {
-	if ret := HTMLayoutMoveElement(uintptr(e.handle), int32(x), int32(y)); ret != HLDOM_OK {
+	if ret := HTMLayoutMoveElement(uintptr(e.handle), int32(x), int32(y), 0); ret != HLDOM_OK {
 		domPanic(ret, "Failed to move element")
 	}
 }
 
 func (e *Element) Resize(x, y, w, h int) {
-	if ret := HTMLayoutMoveElementEx(uintptr(e.handle), int32(x), int32(y), int32(w), int32(h)); ret != HLDOM_OK {
+	if ret := HTMLayoutMoveElementEx(uintptr(e.handle), int32(x), int32(y), int32(w), int32(h), 0); ret != HLDOM_OK {
 		domPanic(ret, "Failed to resize element")
 	}
 }
 
 func (e *Element) getRect(rectTypeFlags uint32) (left, top, right, bottom int) {
-	r := struct{ Left, Top, Right, Bottom int32 }{}
+	var r Rect
 	if ret := HTMLayoutGetElementLocation(uintptr(e.handle), &r, rectTypeFlags); ret != HLDOM_OK {
 		domPanic(ret, "Failed to get element rect")
 	}

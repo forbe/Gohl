@@ -564,7 +564,7 @@ func HTMLayoutGetElementInnerText(handle uintptr, text **byte) int {
 	return int(ret)
 }
 
-func HTMLayoutGetAttributeByName(handle uintptr, name *byte, value **byte) int {
+func HTMLayoutGetAttributeByName(handle uintptr, name *byte, value **uint16) int {
 	if procHTMLayoutGetAttributeByName == nil {
 		return -1
 	}
@@ -580,7 +580,7 @@ func HTMLayoutSetAttributeByName(handle uintptr, name *byte, value *uint16) int 
 	return int(ret)
 }
 
-func HTMLayoutGetNthAttribute(handle uintptr, n uint32, name **byte, value **byte) int {
+func HTMLayoutGetNthAttribute(handle uintptr, n uint32, name **byte, value **uint16) int {
 	if procHTMLayoutGetNthAttribute == nil {
 		return -1
 	}
@@ -596,7 +596,7 @@ func HTMLayoutGetAttributeCount(handle uintptr, count *uint32) int {
 	return int(ret)
 }
 
-func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **byte) int {
+func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **uint16) int {
 	if procHTMLayoutGetStyleAttribute == nil {
 		return -1
 	}
@@ -604,7 +604,7 @@ func HTMLayoutGetStyleAttribute(handle uintptr, name *byte, value **byte) int {
 	return int(ret)
 }
 
-func HTMLayoutSetStyleAttribute(handle uintptr, name *byte, value *byte) int {
+func HTMLayoutSetStyleAttribute(handle uintptr, name *byte, value *uint16) int {
 	if procHTMLayoutSetStyleAttribute == nil {
 		return -1
 	}
