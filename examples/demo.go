@@ -1,145 +1,15 @@
 package main
 
 import (
-	"gohl"
 	"log"
-	"syscall"
-	"unsafe"
+
+	"github.com/forbe/gohl"
 )
 
 var gw *gohl.Window
+var tray *gohl.TrayIcon
 
-// 托盘相关的常量和结构体
-const (
-	NIM_ADD        = 0x00000000
-	NIM_MODIFY     = 0x00000001
-	NIM_DELETE     = 0x00000002
-	NIM_SETVERSION = 0x00000004
-	NIF_MESSAGE    = 0x00000001
-	NIF_ICON       = 0x00000002
-	NIF_TIP        = 0x00000004
-	NIF_INFO       = 0x00000010
-	NIIF_INFO      = 0x00000001
-	NIIF_USER      = 0x00000004
-	WM_TRAYMSG     = 0x0400 + 1
-)
-
-type NOTIFYICONDATA struct {
-	CbSize        uint32
-	Hwnd          uintptr
-	UId           uint32
-	UFlags        uint32
-	UMsg          uint32
-	HIcon         uintptr
-	SzTip         [128]uint16
-	DwState       uint32
-	DwStateMask   uint32
-	SzInfo        [256]uint16
-	UTimeout      uint32
-	UVersion      uint32
-	SzInfoTitle   [64]uint16
-	DwInfoFlags   uint32
-	SzBalloonIcon [256]uint16
-}
-
-var (
-	shell32              = syscall.NewLazyDLL("shell32.dll")
-	procShell_NotifyIcon = shell32.NewProc("Shell_NotifyIconW")
-)
-
-// 托盘图标是否已添加
-var trayIconAdded bool
-
-func Shell_NotifyIcon(dwMessage uint32, pnid *NOTIFYICONDATA) bool {
-	ret, _, _ := procShell_NotifyIcon.Call(uintptr(dwMessage), uintptr(unsafe.Pointer(pnid)))
-	return ret != 0
-}
-
-// 添加托盘图标
-func addTrayIcon() {
-	if trayIconAdded {
-		return
-	}
-
-	var nid NOTIFYICONDATA
-	nid.CbSize = uint32(unsafe.Sizeof(nid))
-	nid.Hwnd = uintptr(gw.GetHwnd())
-	nid.UId = 1
-	nid.UFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
-	nid.UMsg = WM_TRAYMSG
-
-	// 使用窗口配置中的图标
-	hIcon := gw.GetIcon()
-	log.Printf("[Tray] 窗口图标句柄: %v", hIcon)
-
-	// 如果获取不到图标，使用默认值
-	if hIcon == 0 {
-		// 尝试从 shell32.dll 获取一个默认图标
-		extractIcon := shell32.NewProc("ExtractIconW")
-		if extractIcon != nil {
-			hIcon, _, _ = extractIcon.Call(0, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("shell32.dll"))), 4)
-			log.Printf("[Tray] 从 shell32.dll 获取图标: %v", hIcon)
-		}
-	}
-
-	nid.HIcon = hIcon
-
-	// 设置提示文本
-	tip := "Behaviors Demo"
-	tipUtf16 := syscall.StringToUTF16(tip)
-	copy(nid.SzTip[:], tipUtf16)
-
-	if Shell_NotifyIcon(NIM_ADD, &nid) {
-		trayIconAdded = true
-		log.Println("[Tray] 托盘图标已添加")
-	} else {
-		log.Println("[Tray] 添加托盘图标失败")
-	}
-}
-
-// 删除托盘图标
-func removeTrayIcon() {
-	if !trayIconAdded {
-		return
-	}
-
-	var nid NOTIFYICONDATA
-	nid.CbSize = uint32(unsafe.Sizeof(nid))
-	nid.Hwnd = uintptr(gw.GetHwnd())
-	nid.UId = 1
-
-	if Shell_NotifyIcon(NIM_DELETE, &nid) {
-		trayIconAdded = false
-		log.Println("[Tray] 托盘图标已删除")
-	}
-}
-
-// 显示托盘提示
-func showTrayTip(title, message string) {
-	var nid NOTIFYICONDATA
-	nid.CbSize = uint32(unsafe.Sizeof(nid))
-	nid.Hwnd = uintptr(gw.GetHwnd())
-	nid.UId = 1
-	nid.UFlags = NIF_INFO
-
-	// 设置提示消息
-	msgUtf16 := syscall.StringToUTF16(message)
-	copy(nid.SzInfo[:], msgUtf16)
-
-	// 设置提示标题
-	titleUtf16 := syscall.StringToUTF16(title)
-	copy(nid.SzInfoTitle[:], titleUtf16)
-
-	// 设置提示图标和超时
-	nid.DwInfoFlags = NIIF_INFO
-	nid.UTimeout = 3000 // 3秒
-
-	if Shell_NotifyIcon(NIM_MODIFY, &nid) {
-		log.Println("[Tray] 显示托盘提示成功:", title, "-", message)
-	} else {
-		log.Println("[Tray] 显示托盘提示失败")
-	}
-}
+const WM_TRAYMSG = 0x0400 + 1
 
 func main() {
 	gw = gohl.NewWindow(gohl.WindowConfig{
@@ -153,6 +23,11 @@ func main() {
 		CornerRadius: 10,
 		Icon:         gohl.LoadIconFromResource(2),
 		Center:       true,
+	})
+
+	tray = gohl.NewTrayIcon(gohl.TrayConfig{
+		Icon: gw.GetIcon(),
+		Tip:  "Behaviors Demo",
 	})
 
 	gw.SetNotifyHandler(&gohl.NotifyHandler{
@@ -177,19 +52,18 @@ func main() {
 			hideModal()
 			showNotification("操作已确认")
 		case "close-btn":
-			// 关闭窗口前删除托盘图标
-			removeTrayIcon()
+			if tray.IsAdded() {
+				tray.Remove()
+			}
 		}
 	}
 
 	gw.OnMinimize = func() bool {
-		// 添加托盘图标
-		addTrayIcon()
-		// 显示托盘提示
-		showTrayTip("应用已最小化", "点击托盘图标恢复窗口")
-		// 隐藏窗口（而不是最小化）
+		if !tray.IsAdded() {
+			tray.Add(gw.GetHwnd(), WM_TRAYMSG)
+			tray.ShowInfo("应用已最小化", "点击托盘图标恢复窗口")
+		}
 		gw.Hide()
-		// 返回 false 阻止后续的最小化操作
 		return false
 	}
 
