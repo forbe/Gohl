@@ -14,8 +14,8 @@ const WM_TRAYMSG = 0x0400 + 1
 func main() {
 	gw = gohl.NewWindow(gohl.WindowConfig{
 		Title:        "Behaviors Demo",
-		Width:        560,
-		Height:       500,
+		Width:        360,
+		Height:       480,
 		Frameless:    true,
 		Resize:       false,
 		Border:       true,
@@ -25,6 +25,7 @@ func main() {
 		Center:       true,
 	})
 
+	store, _ := gohl.NewStorage("GameOnline")
 	tray = gohl.NewTrayIcon(gohl.TrayConfig{
 		Icon: gw.GetIcon(),
 		Tip:  "Behaviors Demo",
@@ -35,21 +36,52 @@ func main() {
 	})
 
 	gw.OnClick = func(elem *gohl.Element) {
+		role, _ := elem.Attr("role")
 		id, _ := elem.Attr("id")
-		switch id {
+		switch role {
 		case "show-modal":
-			showModal("示例对话框", "这是一个模态对话框示例。\n点击确定或取消关闭对话框。")
+			if id == "btn-create" {
+
+			}
+			if id == "btn-join" {
+				html := `
+					<div id="join-code-container">
+						<input id="join-code" type="text" /><br />
+					</div>
+				`
+				lastCode, ok := store.GetString("last-code")
+				if ok {
+					html = `
+						<div id="join-code-container">
+							<input id="join-code" type="text" /><br />
+							✧ &nbsp;<a href="#" id="join-code-history">` + lastCode + `</a>
+						</div>
+					`
+				}
+				showModal("modal01", "请输入联机码", html)
+				return
+			}
+			showModal("modal01", "示例对话框", "这是一个模态对话框示例。\n点击确定或取消关闭对话框。")
 		case "show-confirm":
-			showModal("确认操作", "您确定要执行此操作吗？")
+			showModal("modal01", "确认操作", "您确定要执行此操作吗？")
 		case "show-alert":
-			showModal("警告", "这是一个警告消息！\n请注意风险。")
+			showModal("modal01", "警告", "这是一个警告消息！\n请注意风险。")
 		case "modal-close", "modal-cancel":
-			hideModal()
-			if id == "modal-cancel" {
+			hideModal(elem)
+			if role == "modal-cancel" {
 				showNotification("已取消操作")
 			}
 		case "modal-ok":
-			hideModal()
+			joinCode := gw.GetRootElement().GetElementById("join-code")
+			if joinCode != nil {
+				code := joinCode.Text()
+				if len(code) < 6 {
+					showNotification("不正确的联机码")
+					return
+				}
+				store.Set("last-code", code)
+			}
+			hideModal(elem)
 			showNotification("操作已确认")
 		case "close-btn":
 			if tray.IsAdded() {
@@ -70,8 +102,11 @@ func main() {
 	gw.OnHyperlinkClick = func(elem *gohl.Element) {
 		id, _ := elem.Attr("id")
 		switch id {
-		case "link1":
-			showNotification("点击了: 链接 1 - 访问首页")
+		case "join-code-history":
+			joinCode := gw.GetRootElement().GetElementById("join-code")
+			if joinCode != nil {
+				joinCode.SetText(elem.Text())
+			}
 		case "link2":
 			showNotification("点击了: 链接 2 - 查看文档")
 		case "link3":
@@ -81,13 +116,14 @@ func main() {
 		}
 	}
 
-	gw.LoadFile("demo.html").Run()
+	gw.LoadFile("demo2.html").Run()
 }
 
-func showModal(title, body string) {
-	overlay := gw.GetRootElement().GetElementById("modal-overlay")
-	titleEl := gw.GetRootElement().GetElementById("modal-title")
-	bodyEl := gw.GetRootElement().GetElementById("modal-body")
+func showModal(id, title, body string) {
+	overlay := gw.GetRootElement().GetElementById(id)
+
+	titleEl := overlay.GetElementByAttr("role", "modal-title")
+	bodyEl := overlay.GetElementByAttr("role", "modal-body")
 
 	if titleEl != nil {
 		titleEl.SetText(title)
@@ -102,12 +138,13 @@ func showModal(title, body string) {
 	log.Println("[Modal] Shown:", title)
 }
 
-func hideModal() {
-	overlay := gw.GetRootElement().GetElementById("modal-overlay")
+func hideModal(elem *gohl.Element) {
+	overlay := elem.FindParentByAttr("role", "modal-overlay")
 	if overlay != nil {
 		overlay.Hide()
+		return
 	}
-	log.Println("[Modal] Hidden")
+	log.Fatal("弹窗cover图层请设置 role='modal-overlay' 否则无法关闭!")
 }
 
 func showNotification(text string) {

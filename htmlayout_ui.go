@@ -1,10 +1,12 @@
 package gohl
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -14,32 +16,41 @@ func init() {
 	//主goroutine必须锁定在主线程，否则被调度之后（在go的调度度下，主goroutine也不一定总是运行在主线程），会导致HTMLayout崩溃（GUI操作需要在主线程）
 	runtime.LockOSThread()
 
-	// 设置 DPI 感知，防止在高 DPI 显示器上自动缩放
-	setDpiAware()
+	// DPI 感知由 manifest 文件设置 (PerMonitorV2)
+	// 程序需要自己根据 DPI 缩放窗口大小
 }
 
-// setDpiAware 设置进程 DPI 感知模式
-func setDpiAware() {
-	// 尝试使用 SetProcessDpiAwarenessContext (Windows 10 1703+)
+// GetDpiScale 获取当前 DPI 缩放因子（相对于 96 DPI）
+func GetDpiScale() float64 {
 	user32 := syscall.NewLazyDLL("user32.dll")
-	if proc := user32.NewProc("SetProcessDpiAwarenessContext"); proc != nil {
-		// DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
-		proc.Call(uintptr(^uintptr(3))) // -4 的补码表示
-		return
+
+	// 尝试使用 GetDpiForSystem (Windows 10 1607+)
+	if proc := user32.NewProc("GetDpiForSystem"); proc != nil {
+		dpi, _, _ := proc.Call()
+		if dpi != 0 {
+			log.Printf("[DPI] GetDpiForSystem returned: %d (scale: %.2f)", dpi, float64(dpi)/96.0)
+			return float64(dpi) / 96.0
+		}
 	}
 
-	// 回退到 SetProcessDpiAwareness (Windows 8.1+)
-	shcore := syscall.NewLazyDLL("shcore.dll")
-	if proc := shcore.NewProc("SetProcessDpiAwareness"); proc != nil {
-		// PROCESS_PER_MONITOR_DPI_AWARE = 2
-		proc.Call(2)
-		return
+	// 回退到 GetDeviceCaps
+	gdi32 := syscall.NewLazyDLL("gdi32.dll")
+	procGetDC := user32.NewProc("GetDC")
+	procReleaseDC := user32.NewProc("ReleaseDC")
+	procGetDeviceCaps := gdi32.NewProc("GetDeviceCaps")
+
+	hdc, _, _ := procGetDC.Call(0)
+	if hdc != 0 {
+		defer procReleaseDC.Call(0, hdc)
+		// LOGPIXELSX = 88
+		dpi, _, _ := procGetDeviceCaps.Call(hdc, 88)
+		if dpi != 0 {
+			log.Printf("[DPI] GetDeviceCaps returned: %d (scale: %.2f)", dpi, float64(dpi)/96.0)
+			return float64(dpi) / 96.0
+		}
 	}
 
-	// 回退到 SetProcessDPIAware (Windows Vista+)
-	if proc := user32.NewProc("SetProcessDPIAware"); proc != nil {
-		proc.Call()
-	}
+	return 1.0
 }
 
 var (
@@ -270,15 +281,22 @@ var loadedResources = make(map[string][]byte)
 
 func defaultOnLoadData(params *NmhlLoadData) uintptr {
 	if params.Uri == nil {
+		log.Printf("[HLN_LOAD_DATA] params.Uri is nil")
 		return 0
 	}
 
 	uri := utf16ToString(params.Uri)
-	if len(uri) < 11 || uri[:11] != "resources://" {
+	log.Printf("[HLN_LOAD_DATA] Requesting: '%s' (len=%d)", uri, len(uri))
+
+	// 检查是否是 resources:// 开头
+	if !isResourcesURI(uri) {
+		log.Printf("[HLN_LOAD_DATA] Not a resources:// URI, skipping")
 		return 0
 	}
 
+	// 提取资源名称，移除 resources:// 前缀和末尾的斜杠
 	resourceName := uri[11:]
+	resourceName = strings.TrimSuffix(resourceName, "/")
 	filePath := filepath.Join(resourcesDir, resourceName)
 
 	data, err := readFileBytes(filePath)
@@ -287,14 +305,47 @@ func defaultOnLoadData(params *NmhlLoadData) uintptr {
 		return 0
 	}
 
+	// 保存到 map，确保数据在函数返回后仍然有效
 	loadedResources[uri] = data
 
-	params.OutData = uintptr(unsafe.Pointer(&data[0]))
-	params.OutDataSize = int32(len(data))
-	params.DataType = 0
+	// 使用 map 中存储的数据指针，而不是局部变量 data 的指针
+	storedData := loadedResources[uri]
+	if len(storedData) == 0 {
+		log.Printf("[HLN_LOAD_DATA] storedData is empty")
+		return 0
+	}
 
-	log.Printf("[HLN_LOAD_DATA] Loaded resource: %s (%d bytes)", filePath, len(data))
+	params.OutData = uintptr(unsafe.Pointer(&storedData[0]))
+	params.OutDataSize = int32(len(storedData))
+	// 根据文件扩展名设置数据类型
+	params.DataType = getResourceDataType(resourceName)
+
+	log.Printf("[HLN_LOAD_DATA] Loaded resource: %s (%d bytes), type: %d, ptr: %x", filePath, len(storedData), params.DataType, params.OutData)
 	return 1
+}
+
+// isResourcesURI 检查是否是 resources:// URI
+func isResourcesURI(uri string) bool {
+	return strings.HasPrefix(uri, "resources://")
+}
+
+// getResourceDataType 根据文件扩展名返回资源数据类型
+func getResourceDataType(filename string) uint32 {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".html", ".htm":
+		return HLRT_DATA_HTML
+	case ".css":
+		return HLRT_DATA_STYLE
+	case ".js":
+		return HLRT_DATA_SCRIPT
+	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".svg":
+		return HLRT_DATA_IMAGE
+	case ".ttf", ".otf", ".woff", ".woff2":
+		return HLRT_DATA_HTML
+	default:
+		return HLRT_DATA_HTML
+	}
 }
 
 func readFileBytes(path string) ([]byte, error) {
@@ -383,14 +434,19 @@ func (w *Window) Run() {
 
 	x := uintptr(CW_USEDEFAULT)
 	y := uintptr(CW_USEDEFAULT)
-	width := uintptr(w.config.Width)
-	height := uintptr(w.config.Height)
+
+	// 获取 DPI 缩放因子，根据 DPI 缩放窗口大小
+	// 这样窗口在不同 DPI 显示器上显示相同的物理大小
+	dpiScale := GetDpiScale()
+	width := uintptr(float64(w.config.Width) * dpiScale)
+	height := uintptr(float64(w.config.Height) * dpiScale)
+	log.Printf("[Window] Config: %dx%d, DPI scale: %.2f, Final size: %dx%d", w.config.Width, w.config.Height, dpiScale, width, height)
 
 	if w.config.Center {
 		screenWidth, _, _ := procGetSystemMetrics.Call(SM_CXSCREEN)
 		screenHeight, _, _ := procGetSystemMetrics.Call(SM_CYSCREEN)
-		x = uintptr(int(screenWidth)-w.config.Width) / 2
-		y = uintptr(int(screenHeight)-w.config.Height) / 2
+		x = (uintptr(screenWidth) - width) / 2
+		y = (uintptr(screenHeight) - height) / 2
 	}
 
 	hwnd, errno := createWindowEx(
@@ -411,7 +467,9 @@ func (w *Window) Run() {
 		if radius <= 0 {
 			radius = 10
 		}
-		setRoundedRegion(uint32(hwnd), w.config.Width, w.config.Height, radius)
+		// 圆角半径也需要根据 DPI 缩放
+		scaledRadius := int(float64(radius) * dpiScale)
+		setRoundedRegion(uint32(hwnd), int(width), int(height), scaledRadius)
 	}
 
 	procShowWindow.Call(uintptr(hwnd), SW_SHOW)
@@ -1020,4 +1078,188 @@ func setRoundedRegion(hwnd uint32, width, height, radius int) {
 	if r0 != 0 {
 		procSetWindowRgn.Call(uintptr(hwnd), r0, 1)
 	}
+}
+
+type BitmapInfoHeader struct {
+	Size          uint32
+	Width         int32
+	Height        int32
+	Planes        uint16
+	BitCount      uint16
+	Compression   uint32
+	SizeImage     uint32
+	XPelsPerMeter int32
+	YPelsPerMeter int32
+	ClrUsed       uint32
+	ClrImportant  uint32
+}
+
+type BitmapInfo struct {
+	Header BitmapInfoHeader
+	Colors [256]uint32
+}
+
+func (w *Window) CaptureWindow(scale float64, blurRadius int) ([]byte, int, int, error) {
+	var rect Rect
+	procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&rect)))
+	width := int(rect.Right - rect.Left)
+	height := int(rect.Bottom - rect.Top)
+
+	procGetDC := user32.NewProc("GetDC")
+	procReleaseDC := user32.NewProc("ReleaseDC")
+	procCreateCompatibleDC := gdi32.NewProc("CreateCompatibleDC")
+	procCreateCompatibleBitmap := gdi32.NewProc("CreateCompatibleBitmap")
+	procSelectObject := gdi32.NewProc("SelectObject")
+	procDeleteObject := gdi32.NewProc("DeleteObject")
+	procDeleteDC := gdi32.NewProc("DeleteDC")
+	procBitBlt := gdi32.NewProc("BitBlt")
+	procGetDIBits := gdi32.NewProc("GetDIBits")
+
+	hdc, _, _ := procGetDC.Call(uintptr(w.hwnd))
+	if hdc == 0 {
+		return nil, 0, 0, fmt.Errorf("failed to get window DC")
+	}
+	defer procReleaseDC.Call(uintptr(w.hwnd), hdc)
+
+	hMemDC, _, _ := procCreateCompatibleDC.Call(hdc)
+	if hMemDC == 0 {
+		return nil, 0, 0, fmt.Errorf("failed to create compatible DC")
+	}
+	defer procDeleteDC.Call(hMemDC)
+
+	hBitmap, _, _ := procCreateCompatibleBitmap.Call(hdc, uintptr(width), uintptr(height))
+	if hBitmap == 0 {
+		return nil, 0, 0, fmt.Errorf("failed to create compatible bitmap")
+	}
+	defer procDeleteObject.Call(hBitmap)
+
+	hOldBitmap, _, _ := procSelectObject.Call(hMemDC, hBitmap)
+	defer procSelectObject.Call(hMemDC, hOldBitmap)
+
+	procBitBlt.Call(hMemDC, 0, 0, uintptr(width), uintptr(height), hdc, 0, 0, 0x00CC0020)
+
+	bmi := BitmapInfo{}
+	bmi.Header.Size = uint32(unsafe.Sizeof(bmi.Header))
+	bmi.Header.Width = int32(width)
+	bmi.Header.Height = int32(-height)
+	bmi.Header.Planes = 1
+	bmi.Header.BitCount = 32
+	bmi.Header.Compression = 0
+
+	rowSize := width * 4
+	dataSize := rowSize * height
+	pixelData := make([]byte, dataSize)
+
+	procGetDIBits.Call(hMemDC, hBitmap, 0, uintptr(height), uintptr(unsafe.Pointer(&pixelData[0])), uintptr(unsafe.Pointer(&bmi)), 0)
+
+	if scale != 1.0 {
+		newWidth := int(float64(width) * scale)
+		newHeight := int(float64(height) * scale)
+		pixelData = resizeImage(pixelData, width, height, newWidth, newHeight)
+		width, height = newWidth, newHeight
+	}
+
+	if blurRadius > 0 {
+		pixelData = boxBlur(pixelData, width, height, blurRadius)
+	}
+
+	return pixelData, width, height, nil
+}
+
+func resizeImage(data []byte, oldW, oldH, newW, newH int) []byte {
+	result := make([]byte, newW*newH*4)
+	xRatio := float64(oldW) / float64(newW)
+	yRatio := float64(oldH) / float64(newH)
+
+	for y := 0; y < newH; y++ {
+		for x := 0; x < newW; x++ {
+			srcX := int(float64(x) * xRatio)
+			srcY := int(float64(y) * yRatio)
+
+			srcIdx := (srcY*oldW + srcX) * 4
+			dstIdx := (y*newW + x) * 4
+
+			if srcIdx+3 < len(data) {
+				result[dstIdx] = data[srcIdx]
+				result[dstIdx+1] = data[srcIdx+1]
+				result[dstIdx+2] = data[srcIdx+2]
+				result[dstIdx+3] = data[srcIdx+3]
+			}
+		}
+	}
+	return result
+}
+
+func boxBlur(data []byte, width, height, radius int) []byte {
+	result := make([]byte, len(data))
+	copy(result, data)
+
+	for i := 0; i < 2; i++ {
+		horizontalBlur(result, width, height, radius)
+		verticalBlur(result, width, height, radius)
+	}
+
+	return result
+}
+
+func horizontalBlur(data []byte, width, height, radius int) {
+	temp := make([]byte, len(data))
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			var r, g, b, a, count int
+
+			for dx := -radius; dx <= radius; dx++ {
+				nx := x + dx
+				if nx >= 0 && nx < width {
+					idx := (y*width + nx) * 4
+					b += int(data[idx])
+					g += int(data[idx+1])
+					r += int(data[idx+2])
+					a += int(data[idx+3])
+					count++
+				}
+			}
+
+			idx := (y*width + x) * 4
+			if count > 0 {
+				temp[idx] = byte(b / count)
+				temp[idx+1] = byte(g / count)
+				temp[idx+2] = byte(r / count)
+				temp[idx+3] = byte(a / count)
+			}
+		}
+	}
+	copy(data, temp)
+}
+
+func verticalBlur(data []byte, width, height, radius int) {
+	temp := make([]byte, len(data))
+
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			var r, g, b, a, count int
+
+			for dy := -radius; dy <= radius; dy++ {
+				ny := y + dy
+				if ny >= 0 && ny < height {
+					idx := (ny*width + x) * 4
+					b += int(data[idx])
+					g += int(data[idx+1])
+					r += int(data[idx+2])
+					a += int(data[idx+3])
+					count++
+				}
+			}
+
+			idx := (y*width + x) * 4
+			if count > 0 {
+				temp[idx] = byte(b / count)
+				temp[idx+1] = byte(g / count)
+				temp[idx+2] = byte(r / count)
+				temp[idx+3] = byte(a / count)
+			}
+		}
+	}
+	copy(data, temp)
 }

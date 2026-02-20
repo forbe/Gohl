@@ -205,7 +205,7 @@ gw.SetTimer(2000, func() {
 
 ```bash
 cd examples
-go build -o examples/demo.exe ./examples
+build.bat
 ./demo.exe
 ```
 

@@ -1,0 +1,567 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+        @font-face {
+            font-family: '阿里巴巴普惠体 2.0 55 Regular';
+            src: url('resources://alibaba_puhui.ttf');
+        }
+        * { margin: 0; padding: 0; }
+        html {
+            font-family: '阿里巴巴普惠体 2.0 55 Regular';
+            background: #1a1a2e;
+        }
+        body {
+            background: #1a1a2e;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }
+        .big{font-size:1.2em;}
+
+        /* 主容器 */
+        #app {
+            size: *;
+        }
+
+        #title-bar {
+            width: 100%;
+            position:fixed;
+            color: white;
+            horizontal-align: right;
+            vertical-align: middle; 
+            cursor: default;
+            user-select: none;
+            background:green green rgb(154, 154, 45) rgb(105, 197, 197) url(title-bg.png) repeat-x top center;
+            flow:horizontal; 
+            padding:8px;
+        }
+        
+        #title-bar>div:first-child {
+            font-weight: bold;
+            width:1*;
+            height: 32px;
+            padding-left:10dip;
+            line-height: 32dip;
+        }
+        #title-bar>div:last-child {
+            width:100dip;
+            text-align: right;
+            padding-right:5px;
+        }
+        #soft-name{color:#8894AA}
+        
+        .window-btn {
+            width: 22dip;
+            height: 22dip;
+            line-height:18dip;
+            border: none;
+            font-size:2em;
+            color: #FCFCFC;
+            cursor: pointer;
+            margin-right:2dip;
+            padding: 2dip;
+            background:none;
+        }
+        
+       #min-btn:hover {background: #4ecdc4;border-radius: 5dip;}
+       #close-btn:hover {background: #e74c3c;border-radius: 5dip;}
+        
+        /* 右上角菜单 */
+        .menu-container {
+            position: absolute;
+            top: 60dip;
+            right: 15dip;
+            z-index: 100;
+            opacity: 0.2;
+        }
+        .menu-container:hover{
+            opacity: 0.5;
+        }
+        .menu-btn {
+            background:url(setting.png) no-repeat center center;
+            border: none;
+            width:32px;
+            height:32px;
+            cursor: pointer;
+        }
+
+        /* 页面通用 */
+        .page {
+            size: *;
+            flow: vertical;
+            display: none;
+            text-align: center;
+            background-color:#1E2025;
+
+        }
+        .page.active { display: block; }
+
+        .container {
+            flow: vertical;
+            width:80%;
+            margin:0 auto;
+            text-align: center;
+        }
+
+        /* ===== 主界面 ===== */
+        #main { display: block; }
+
+        h1.title {
+            font-weight: bold;
+            font-size:2em;
+            margin-bottom: 8dip;
+            text-align: center;
+            margin-top:100dip;
+        }
+        p.subtitle {
+            color: #22c55e;
+            margin-bottom: 50dip;
+            text-align: center;
+        }
+
+        /* 卡片按钮 */
+        .card-list {
+            flow: vertical;
+            width: *;
+            border-spacing: 15dip;
+        }
+
+        .action-card {
+            flow: horizontal;
+            horizontal-align: center;
+            text-align: center;
+            width: *;
+            background: #282b32;
+            border: 1dip solid #333355;
+            border-radius: 3%;
+            padding: 10dip;
+            cursor: pointer;
+            behavior: clickable;
+            border:1dip solid rgba(255,255,255,0.1);
+        }
+
+        .action-card:hover {
+            background: #32363f;
+            border-color: #aad4d2;
+            /* outline:18dip glow #494949 8dip;  */
+        }
+        .card-icon1, .card-icon2 {
+            width: 48dip;
+            height: 48dip;
+            border-radius: 12dip;
+            padding:10dip;
+        }
+        .bottom-text{
+            text-align: center;
+            font-size: .9em;
+            color:gray;
+            margin-top:20dip;
+        }
+        .card-icon1{
+            background:url(1.png) no-repeat center center;
+        }
+        .card-icon2{
+            background:url(2.png) no-repeat center center;
+        }
+        .create-card .card-icon {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        }
+        .join-card .card-icon {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+
+        .card-content {
+            height:*;
+            text-align:left;
+            padding-left:20dip;
+            flow:vertical;
+            vertical-align: middle;
+        }
+        .card-content h3 {
+            font-size:1.2em;
+            margin-bottom: 4dip;
+        }
+        .card-content p {
+            color: #888;
+        }
+
+        /* ===== 创建成功界面 ===== */
+        .success-icon {
+            width: 90dip;
+            height: 90dip;
+            background: #22c55e;
+            border-radius: 50%;
+            flow: vertical;
+            align: center;
+            pack: center;
+            margin-bottom: 25dip;
+        }
+        .success-icon svg {
+            size: 45dip;
+            stroke: #fff;
+            stroke-width: 4dip;
+            fill: none;
+        }
+
+        .page-title {
+            margin-bottom: 8dip;
+            text-align: center;
+        }
+        .page-subtitle {
+            color: #888;
+            margin-bottom: 30dip;
+            text-align: center;
+        }
+
+        .code-box {
+            width: *;
+            background: #252540;
+            border: 1dip solid #333355;
+            border-radius: 16dip;
+            padding: 25dip;
+            flow: vertical;
+            align: center;
+            margin-bottom: 20dip;
+        }
+        .code-label {
+            color: #888;
+            margin-bottom: 15dip;
+        }
+        .room-code {
+            font-weight: bold;
+            color: #ff6b6b;
+            letter-spacing: 8dip;
+            margin-bottom: 20dip;
+        }
+        .copy-btn {
+            flow: horizontal;
+            align: center;
+            background: #333355;
+            border: none;
+            border-radius: 8dip;
+            padding: 10dip 20dip;
+            color: #fff;
+            
+            cursor: pointer;
+            ;
+        }
+        .copy-btn svg {
+            size: 16dip;
+            fill: #fff;
+            margin-right: 8dip;
+        }
+
+        .waiting-text {
+            color: #4ecdc4;
+            
+            margin-bottom: 30dip;
+        }
+        .waiting-text::before {
+            content: "";
+            display: inline-block;
+            width: 8dip;
+            height: 8dip;
+            background: #4ecdc4;
+            border-radius: 50%;
+            margin-right: 8dip;
+        }
+
+        .close-btn {
+            color: #888;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* ========== Light-box Dialog Style ========== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display:none;
+            horizontal-align:center;
+            vertical-align:middle;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            padding:20dip;
+        }
+        
+        .modal-overlay.show {
+            display: block;
+        }
+        
+        .modal {
+            behavior: light-box-dialog;
+            background: #282B32;
+            border-radius: 8dip;
+            padding: 0;
+            min-width: 300dip;
+            max-width: 500dip;
+            box-shadow: 0 10dip 40dip rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 15dip 20dip;
+            color: white;
+            border-radius: 8dip 8dip 0 0;
+            font-weight: bold;
+            position:relative;
+        }
+        
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.6em;
+            cursor: pointer;
+            padding: 0;
+            width: 24dip;
+            height: 24dip;
+            position: absolute;
+            right:10dip;
+            top:10dip;
+        }
+        
+        .modal-close:hover {
+            font-size: 1.62em;
+        }
+        
+        .modal-body {
+            padding: 40dip 20dip;
+            white-space: pre-wrap;
+        }
+        
+        .modal-footer {
+            padding: 15dip 20dip;
+            border-top: 1dip solid #393d46;
+            text-align: right;
+        }
+        .btn {
+            padding: 10dip 20dip;
+            border: 1dip solid #444954;
+            border-radius: 8dip;
+            color: #fff;
+            cursor: pointer;
+        }
+       .btn-primary {
+            background: #FE6E67;
+        }
+        .btn-primary:hover {
+            background: #fd665e;
+        }
+        .btn-secondary {
+            background: #282B32;
+        }
+        .btn-secondary:hover {
+            background: #393d46;
+        }
+        
+        #join-code-container {
+            flow: vertical;
+            vertical-align: center;
+            padding:10px;
+        }
+
+        #join-code{
+            width:*;
+            padding:5dip;
+            border-radius: 5dip;
+            margin-bottom: 5dip;
+        }
+        #join-code:hover{
+            border-radius: 5dip;
+            outline:2dip glow #94bdc7 2dip;
+        }
+        #join-code-history{
+            color: #888;
+            text-decoration: none;
+        }
+        #join-code-history:hover{
+            color: #fff;
+        }
+
+        .input-group {
+            flow: vertical;
+            margin-bottom: 25dip;
+        }
+        .input-group label {
+            color: #888;
+            margin-bottom: 10dip;
+        }
+        .code-input {
+            width: *;
+            height: 55dip;
+            background: #1a1a2e;
+            border: 1dip solid #333355;
+            border-radius: 12dip;
+            color: #fff;
+            text-align: center;
+            letter-spacing: 4dip;
+        }
+        .code-input:focus {
+            border-color: #4ecdc4;
+        }
+
+        .confirm-btn {
+            width: *;
+            height: 50dip;
+            border: none;
+            border-radius: 12dip;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15dip;
+        }
+        .modal-cancel {
+            color: #888;
+            text-align: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* ===== 连接成功界面 ===== */
+        .info-box {
+            width: *;
+            background: #252540;
+            border: 1dip solid #333355;
+            border-radius: 16dip;
+            padding: 25dip;
+            flow: vertical;
+            margin-bottom: 30dip;
+        }
+        .info-row {
+            flow: horizontal;
+            align: center;
+            margin-bottom: 15dip;
+        }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label {
+            color: #888;
+            width: 100dip;
+        }
+        .info-value {
+            color: #fff;
+        }
+       
+    </style>
+</head>
+<body>
+   <div id="title-bar" -gohl-drag>
+		<div class="soft-name"><span.red>❤</span>网游精灵<i>v5.0.0</i></div>
+		<div>
+			<button id="min-btn" class="window-btn" -gohl-min>-</button>
+			<button id="close-btn" class="window-btn" -gohl-close>×</button>
+		</div>
+	</div>
+    <div id="app">
+        <!-- 右上角菜单 -->
+        <div class="menu-container">
+            <button class="menu-btn" role="setting-menu"></button>
+        </div>
+
+        <!-- 1. 主界面 -->
+        <div class="page active" id="main">
+            <div class="container">
+                <h1 class="title">网游精灵</h1>
+                <p class="subtitle">懂你的联机工具</p>
+
+                <div class="card-list">
+                    <div class="action-card create-card" id="btn-create" role="show-modal">
+                        <div class="card-icon1"></div>
+                        <div class="card-content">
+                            <h3>创建游戏</h3>
+                            <p>创建房间并邀请好友</p>
+                        </div>
+                    </div>
+
+                    <div class="action-card join-card" id="btn-join" role="show-modal">
+                        <div class="card-icon2"></div>
+                        <div class="card-content">
+                            <h3>加入游戏</h3>
+                            <p>输入联机码加入房间</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom-text">
+                    <p>版本 5.0.0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 创建成功界面 -->
+        <div class="page" id="create">
+            <div class="container">
+                <div class="success-icon">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="6 12 10 16 18 8"/>
+                    </svg>
+                </div>
+                <h2 class="page-title">房间创建成功</h2>
+                <p class="page-subtitle">分享联机码给好友</p>
+
+                <div class="code-box">
+                    <div class="code-label">联机码</div>
+                    <div class="room-code">CAIQZL</div>
+                    <button class="copy-btn" id="btn-copy">
+                        <svg viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        <span>复制联机码</span>
+                    </button>
+                </div>
+
+                <div class="waiting-text">等待玩家加入...</div>
+                <button class="close-btn" id="btn-close-room">关闭房间</button>
+            </div>
+        </div>
+
+        <!-- 4. 连接成功界面 -->
+        <div class="page" id="joined">
+            <div class="container">
+                <div class="success-icon">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="6 12 10 16 18 8"/>
+                    </svg>
+                </div>
+                <h2 class="page-title">连接成功</h2>
+                <p class="page-subtitle">已加入房间 CAIQZL</p>
+
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">服务器 IP</span>
+                        <span class="info-value">192.168.1.100</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">虚拟 IP</span>
+                        <span class="info-value">10.0.0.2</span>
+                    </div>
+                </div>
+
+                <button class="close-btn" id="btn-leave-room">离开房间</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+	<div class="modal-overlay" role="modal-overlay" id="modal01">
+		<div class="modal" role="modal-dialog">
+			<div class="modal-header">
+				<div role="modal-title".big>对话框标题</div>
+				<button class="modal-close" role="modal-close">×</button>
+			</div>
+			<div class="modal-body" role="modal-body">
+				这是对话框内容
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-secondary" role="modal-cancel">取消</button>
+				<button class="btn btn-primary" role="modal-ok">确定</button>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

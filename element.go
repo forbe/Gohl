@@ -353,6 +353,62 @@ func (e *Element) GetElementById(id string) *Element {
 	return nil
 }
 
+func (e *Element) FindParentByAttr(attrName, attrValue string) *Element {
+	parent := e.Parent()
+	for parent != e.Root() {
+		val, exists := parent.Attr(attrName)
+		if exists && val == attrValue {
+			return parent
+		}
+		parent = parent.Parent()
+	}
+	return nil
+}
+
+func (e *Element) FindParentById(id string) *Element {
+	return e.FindParentByAttr("id", id)
+}
+
+func (e *Element) GetElementByAttr(attrName, attrValue string) *Element {
+	var result *Element
+	e.walkElements(func(elem *Element) bool {
+		val, exists := elem.Attr(attrName)
+		if exists && val == attrValue {
+			result = elem
+			return false
+		}
+		return true
+	})
+	return result
+}
+
+func (e *Element) GetElementsByAttr(attrName, attrValue string) []*Element {
+	var result []*Element
+	e.walkElements(func(elem *Element) bool {
+		val, exists := elem.Attr(attrName)
+		if exists && val == attrValue {
+			result = append(result, elem)
+		}
+		return true
+	})
+	return result
+}
+
+func (e *Element) walkElements(callback func(*Element) bool) bool {
+	if !callback(e) {
+		return false
+	}
+	for i := uint(0); i < e.ChildCount(); i++ {
+		child := e.Child(i)
+		if child != nil {
+			if !child.walkElements(callback) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (e *Element) GetElementsByTagName(tag string) []*Element {
 	return e.Select(tag)
 }
