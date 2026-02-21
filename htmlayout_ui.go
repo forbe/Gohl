@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -93,6 +94,7 @@ var (
 	procSetWindowRgn               = user32.NewProc("SetWindowRgn")
 	procGetWindowLong              = user32.NewProc("GetWindowLongW")
 	procSetWindowLong              = user32.NewProc("SetWindowLongW")
+	procPostMessage                = user32.NewProc("PostMessageW")
 )
 
 const (
@@ -117,6 +119,7 @@ const (
 	WM_NCPAINT    = 0x0085
 	WM_NCACTIVATE = 0x0086
 	WM_TIMER      = 0x0113
+	WM_USER       = 0x0400
 
 	HTCLIENT      = 1
 	HTCAPTION     = 2
@@ -280,12 +283,32 @@ func (w *Window) SetNotifyHandler(handler *NotifyHandler) *Window {
 
 var loadedResources = make(map[string][]byte)
 
+var (
+	dispatchQueue = make(chan func())
+	dispatchOnce  sync.Once
+)
+
 type ResourceLoader func(uri string) ([]byte, uint32, bool)
 
 var resourceLoaders = make(map[string]ResourceLoader)
 
 func RegisterResourceLoader(scheme string, loader ResourceLoader) {
 	resourceLoaders[scheme] = loader
+}
+
+func Dispatch(fn func()) {
+	dispatchOnce.Do(func() {
+		go func() {
+			for fn := range dispatchQueue {
+				fn()
+			}
+		}()
+	})
+	dispatchQueue <- fn
+}
+
+func (w *Window) Dispatch(fn func()) {
+	Dispatch(fn)
 }
 
 func defaultOnLoadData(params *NmhlLoadData) uintptr {
