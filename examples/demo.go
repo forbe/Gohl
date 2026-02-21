@@ -154,33 +154,37 @@ func alert(msg string) {
 }
 
 func showModal(id, title, body string) {
-	overlay := gw.GetRootElement().GetElementById(id)
+	gw.Dispatch(func() {
+		overlay := gw.GetRootElement().GetElementById(id)
 
-	titleEl := overlay.GetElementByAttr("role", "modal-title")
-	bodyEl := overlay.GetElementByAttr("role", "modal-body")
+		titleEl := overlay.GetElementByAttr("role", "modal-title")
+		bodyEl := overlay.GetElementByAttr("role", "modal-body")
 
-	if titleEl != nil {
-		titleEl.SetText(title)
-	}
-	if bodyEl != nil {
-		if body != "" {
-			bodyEl.SetHtml(body)
+		if titleEl != nil {
+			titleEl.SetText(title)
 		}
-	}
-	if overlay != nil {
-		overlay.Show()
-	}
+		if bodyEl != nil {
+			if body != "" {
+				bodyEl.SetHtml(body)
+			}
+		}
+		if overlay != nil {
+			overlay.Show()
+		}
 
-	log.Println("[Modal] Shown:", title)
+		log.Println("[Modal] Shown:", title)
+	})
 }
 
 func hideModal(elem *gohl.Element) {
-	overlay := elem.FindParentByAttr("role", "modal-overlay")
-	if overlay != nil {
-		overlay.Hide()
-		return
-	}
-	log.Fatal("弹窗cover图层请设置 role='modal-overlay' 否则无法关闭!")
+	gw.Dispatch(func() {
+		overlay := elem.FindParentByAttr("role", "modal-overlay")
+		if overlay != nil {
+			overlay.Hide()
+			return
+		}
+		log.Println("弹窗cover图层请设置 role='modal-overlay' 否则无法关闭!")
+	})
 }
 
 func showNotification(text string) {

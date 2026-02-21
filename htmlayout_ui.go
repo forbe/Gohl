@@ -860,81 +860,83 @@ func (w *Window) SetElementValue(id string, value string) {
 }
 
 func (w *Window) UpdateUI(updates ...U) {
-	root := RootElement(w.hwnd)
-	if root == nil {
-		return
-	}
-
-	for _, update := range updates {
-		elem := root.GetElementById(update.ID)
-		if elem == nil {
-			continue
+	w.Dispatch(func() {
+		root := RootElement(w.hwnd)
+		if root == nil {
+			return
 		}
 
-		switch update.Action {
-		case "text":
-			if val, ok := update.Value.(string); ok {
-				elem.SetText(val)
+		for _, update := range updates {
+			elem := root.GetElementById(update.ID)
+			if elem == nil {
+				continue
 			}
-		case "html":
-			if val, ok := update.Value.(string); ok {
-				elem.SetHtml(val)
-			}
-		case "value":
-			if val, ok := update.Value.(string); ok {
-				elem.SetValue(val)
-			}
-		case "class":
-			if val, ok := update.Value.(string); ok {
-				elem.SetAttr("class", val)
-			}
-		case "addClass":
-			if val, ok := update.Value.(string); ok {
-				currentClass, _ := elem.Attr("class")
-				if currentClass != "" {
-					elem.SetAttr("class", currentClass+" "+val)
-				} else {
+
+			switch update.Action {
+			case "text":
+				if val, ok := update.Value.(string); ok {
+					elem.SetText(val)
+				}
+			case "html":
+				if val, ok := update.Value.(string); ok {
+					elem.SetHtml(val)
+				}
+			case "value":
+				if val, ok := update.Value.(string); ok {
+					elem.SetValue(val)
+				}
+			case "class":
+				if val, ok := update.Value.(string); ok {
 					elem.SetAttr("class", val)
 				}
-			}
-		case "removeClass":
-			if val, ok := update.Value.(string); ok {
-				currentClass, _ := elem.Attr("class")
-				if currentClass != "" {
-					classes := removeClass(currentClass, val)
-					elem.SetAttr("class", classes)
-				}
-			}
-		case "show":
-			elem.Show()
-		case "hide":
-			elem.Hide()
-		case "attr":
-			if val, ok := update.Value.(map[string]interface{}); ok {
-				for k, v := range val {
-					if vs, ok := v.(string); ok {
-						elem.SetAttr(k, vs)
+			case "addClass":
+				if val, ok := update.Value.(string); ok {
+					currentClass, _ := elem.Attr("class")
+					if currentClass != "" {
+						elem.SetAttr("class", currentClass+" "+val)
+					} else {
+						elem.SetAttr("class", val)
 					}
 				}
-			}
-		case "style":
-			if val, ok := update.Value.(map[string]interface{}); ok {
-				for k, v := range val {
-					if vs, ok := v.(string); ok {
-						elem.SetStyle(k, vs)
+			case "removeClass":
+				if val, ok := update.Value.(string); ok {
+					currentClass, _ := elem.Attr("class")
+					if currentClass != "" {
+						classes := removeClass(currentClass, val)
+						elem.SetAttr("class", classes)
 					}
 				}
-			}
-		case "enabled":
-			if val, ok := update.Value.(bool); ok {
-				if val {
-					elem.SetState(STATE_DISABLED, false)
-				} else {
-					elem.SetState(STATE_DISABLED, true)
+			case "show":
+				elem.Show()
+			case "hide":
+				elem.Hide()
+			case "attr":
+				if val, ok := update.Value.(map[string]interface{}); ok {
+					for k, v := range val {
+						if vs, ok := v.(string); ok {
+							elem.SetAttr(k, vs)
+						}
+					}
+				}
+			case "style":
+				if val, ok := update.Value.(map[string]interface{}); ok {
+					for k, v := range val {
+						if vs, ok := v.(string); ok {
+							elem.SetStyle(k, vs)
+						}
+					}
+				}
+			case "enabled":
+				if val, ok := update.Value.(bool); ok {
+					if val {
+						elem.SetState(STATE_DISABLED, false)
+					} else {
+						elem.SetState(STATE_DISABLED, true)
+					}
 				}
 			}
 		}
-	}
+	})
 }
 
 func (w *Window) SetTimer(milliseconds uint, callback func()) int {

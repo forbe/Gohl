@@ -473,6 +473,9 @@ var goElementComparator = syscall.NewCallback(func(he1 unsafe.Pointer, he2 unsaf
 func ProcNoDefault(hwnd, msg uint32, wparam, lparam uintptr) (uintptr, bool) {
 	var handled bool = false
 	result := HTMLayoutProcND(uintptr(hwnd), msg, wparam, lparam, &handled)
+	if msg >= 0x0400 && msg <= 0x04FF {
+		log.Printf("[ProcNoDefault] WM_USER+0x%X, wparam=0x%X, lparam=0x%X, handled=%v, result=0x%X", msg-0x0400, wparam, lparam, handled, result)
+	}
 	return uintptr(result), handled
 }
 
