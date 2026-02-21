@@ -907,7 +907,13 @@ func (w *Window) UpdateUI(updates ...U) {
 					}
 				}
 			case "show":
-				elem.Show()
+				if val, ok := update.Value.(bool); ok {
+					if val {
+						elem.Show()
+					} else {
+						elem.Hide()
+					}
+				}
 			case "hide":
 				elem.Hide()
 			case "attr":
