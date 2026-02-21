@@ -218,6 +218,7 @@ type Window struct {
 	timers        map[int]func()
 	nextTimerId   int
 	timerHandler  *EventHandler
+	closing       bool
 
 	OnMouseDown              MouseHandler
 	OnMouseUp                MouseHandler
@@ -279,18 +280,47 @@ func (w *Window) SetNotifyHandler(handler *NotifyHandler) *Window {
 
 var loadedResources = make(map[string][]byte)
 
+type ResourceLoader func(uri string) ([]byte, uint32, bool)
+
+var resourceLoaders = make(map[string]ResourceLoader)
+
+func RegisterResourceLoader(scheme string, loader ResourceLoader) {
+	resourceLoaders[scheme] = loader
+}
+
 func defaultOnLoadData(params *NmhlLoadData) uintptr {
 	if params.Uri == nil {
-		log.Printf("[HLN_LOAD_DATA] params.Uri is nil")
 		return 0
 	}
 
 	uri := utf16ToString(params.Uri)
-	log.Printf("[HLN_LOAD_DATA] Requesting: '%s' (len=%d)", uri, len(uri))
+
+	// 先检查缓存
+	if data, ok := loadedResources[uri]; ok && len(data) > 0 {
+		params.OutData = uintptr(unsafe.Pointer(&data[0]))
+		params.OutDataSize = int32(len(data))
+		params.DataType = GetResourceDataType(uri)
+		return 1
+	}
+
+	// 检查自定义资源加载器
+	for scheme, loader := range resourceLoaders {
+		prefix := scheme + "://"
+		if strings.HasPrefix(uri, prefix) {
+			data, dataType, ok := loader(uri)
+			if !ok || len(data) == 0 {
+				return 0
+			}
+			loadedResources[uri] = data
+			params.OutData = uintptr(unsafe.Pointer(&data[0]))
+			params.OutDataSize = int32(len(data))
+			params.DataType = dataType
+			return 1
+		}
+	}
 
 	// 检查是否是 resources:// 开头
 	if !isResourcesURI(uri) {
-		log.Printf("[HLN_LOAD_DATA] Not a resources:// URI, skipping")
 		return 0
 	}
 
@@ -301,7 +331,6 @@ func defaultOnLoadData(params *NmhlLoadData) uintptr {
 
 	data, err := readFileBytes(filePath)
 	if err != nil {
-		log.Printf("[HLN_LOAD_DATA] Failed to load resource: %s, error: %v", filePath, err)
 		return 0
 	}
 
@@ -311,16 +340,14 @@ func defaultOnLoadData(params *NmhlLoadData) uintptr {
 	// 使用 map 中存储的数据指针，而不是局部变量 data 的指针
 	storedData := loadedResources[uri]
 	if len(storedData) == 0 {
-		log.Printf("[HLN_LOAD_DATA] storedData is empty")
 		return 0
 	}
 
 	params.OutData = uintptr(unsafe.Pointer(&storedData[0]))
 	params.OutDataSize = int32(len(storedData))
 	// 根据文件扩展名设置数据类型
-	params.DataType = getResourceDataType(resourceName)
+	params.DataType = GetResourceDataType(resourceName)
 
-	log.Printf("[HLN_LOAD_DATA] Loaded resource: %s (%d bytes), type: %d, ptr: %x", filePath, len(storedData), params.DataType, params.OutData)
 	return 1
 }
 
@@ -329,8 +356,8 @@ func isResourcesURI(uri string) bool {
 	return strings.HasPrefix(uri, "resources://")
 }
 
-// getResourceDataType 根据文件扩展名返回资源数据类型
-func getResourceDataType(filename string) uint32 {
+// GetResourceDataType 根据文件扩展名返回资源数据类型
+func GetResourceDataType(filename string) uint32 {
 	ext := filepath.Ext(filename)
 	switch ext {
 	case ".html", ".htm":
@@ -488,6 +515,11 @@ func (w *Window) Run() {
 }
 
 func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
+	// 如果窗口正在关闭，跳过 HTMLayout 处理
+	if w.closing && msg != WM_DESTROY {
+		return defWindowProc(uint32(hwnd), msg, wparam, lparam)
+	}
+
 	result, handled := ProcNoDefault(uint32(hwnd), msg, wparam, lparam)
 	if handled {
 		return result
@@ -555,7 +587,15 @@ func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintpt
 		}
 
 	case WM_CLOSE:
-		log.Printf("[WM_CLOSE] hwnd=%d, w.hwnd=%d, eventHandler=%v", hwnd, w.hwnd, w.eventHandler != nil)
+		w.closing = true
+		// 先停止 HTMLayout 动画线程
+		SetOption(uint32(hwnd), HTMLAYOUT_ANIMATION_THREAD, 0)
+
+		// 清理 loadedResources 中的资源引用
+		for k := range loadedResources {
+			delete(loadedResources, k)
+		}
+
 		if w.eventHandler != nil {
 			DetachWindowEventHandler(w.hwnd)
 			w.eventHandler = nil

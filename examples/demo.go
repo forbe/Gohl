@@ -1,9 +1,23 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
+	"embed"
+	"io"
 	"log"
+	"strings"
+	"sync"
 
 	"github.com/forbe/gohl"
+)
+
+//go:embed embed.zip
+var embedZip embed.FS
+
+var (
+	embedReader *zip.Reader
+	embedOnce   sync.Once
 )
 
 var gw *gohl.Window
@@ -12,6 +26,9 @@ var tray *gohl.TrayIcon
 const WM_TRAYMSG = 0x0400 + 1
 
 func main() {
+	initEmbedZip()
+	gohl.RegisterResourceLoader("embed", embedLoader)
+
 	gw = gohl.NewWindow(gohl.WindowConfig{
 		Title:        "Behaviors Demo",
 		Width:        360,
@@ -41,7 +58,9 @@ func main() {
 		switch role {
 		case "show-modal":
 			if id == "btn-create" {
-
+				// showLoading(true)
+				alert("请先创建游戏")
+				return
 			}
 			if id == "btn-join" {
 				html := `
@@ -83,6 +102,9 @@ func main() {
 			}
 			hideModal(elem)
 			showNotification("操作已确认")
+
+		case "setting-menu":
+			showModal("modal-setting", "设置", "")
 		case "close-btn":
 			if tray.IsAdded() {
 				tray.Remove()
@@ -119,6 +141,18 @@ func main() {
 	gw.LoadFile("demo2.html").Run()
 }
 
+func showLoading(show bool) {
+	gw.UpdateUI(gohl.U{
+		ID:     "loading",
+		Action: "show",
+		Value:  show,
+	})
+}
+
+func alert(msg string) {
+	showModal("modal01", "警告", msg)
+}
+
 func showModal(id, title, body string) {
 	overlay := gw.GetRootElement().GetElementById(id)
 
@@ -129,7 +163,9 @@ func showModal(id, title, body string) {
 		titleEl.SetText(title)
 	}
 	if bodyEl != nil {
-		bodyEl.SetHtml(body)
+		if body != "" {
+			bodyEl.SetHtml(body)
+		}
 	}
 	if overlay != nil {
 		overlay.Show()
@@ -169,4 +205,49 @@ func hideNotification() {
 	if notification != nil {
 		notification.Hide()
 	}
+}
+
+func initEmbedZip() {
+	embedOnce.Do(func() {
+		data, err := embedZip.ReadFile("embed.zip")
+		if err != nil {
+			log.Printf("Failed to read embed.zip: %v", err)
+			return
+		}
+		reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			log.Printf("Failed to parse embed.zip: %v", err)
+			return
+		}
+		embedReader = reader
+	})
+}
+
+// 从embed.zip加载资源
+func embedLoader(uri string) ([]byte, uint32, bool) {
+	if embedReader == nil {
+		return nil, 0, false
+	}
+
+	filename := uri[8:]
+	filename = strings.TrimSuffix(filename, "/")
+
+	for _, file := range embedReader.File {
+		if file.Name == filename {
+			rc, err := file.Open()
+			if err != nil {
+				return nil, 0, false
+			}
+			defer rc.Close()
+
+			data, err := io.ReadAll(rc)
+			if err != nil {
+				return nil, 0, false
+			}
+
+			return data, gohl.GetResourceDataType(filename), true
+		}
+	}
+
+	return nil, 0, false
 }

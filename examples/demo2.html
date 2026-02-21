@@ -18,7 +18,14 @@
             position: relative;
         }
         .big{font-size:1.2em;}
-
+        .red{color:#969696;}
+        .dot{font-size:0.8em;padding-right:3dip;font-style: normal;}
+        .center{
+            flow:vertical;
+            vertical-align: middle;
+            text-align: center;
+        }
+        
         /* 主容器 */
         #app {
             size: *;
@@ -32,7 +39,7 @@
             vertical-align: middle; 
             cursor: default;
             user-select: none;
-            background:green green rgb(154, 154, 45) rgb(105, 197, 197) url(title-bg.png) repeat-x top center;
+            background:green green rgb(154, 154, 45) rgb(105, 197, 197) url(embed://title-bg.png) repeat-x top center;
             flow:horizontal; 
             padding:8px;
         }
@@ -79,11 +86,42 @@
             opacity: 0.5;
         }
         .menu-btn {
-            background:url(setting.png) no-repeat center center;
+            background:url(embed://setting.png) no-repeat center center;
             border: none;
             width:32px;
             height:32px;
             cursor: pointer;
+        }
+        .setting-item{
+            flow:vertical;
+            vertical-align: middle;
+            margin-bottom: 10dip;
+            width:*;
+            height: 32px;
+            line-height:32dip;
+            padding-left:10dip;
+            border:1px solid #282B32;
+        }
+        .setting-item:hover{
+            background-color: #32363f;
+        }
+        
+        .setting-label{
+            width:100dip;
+            text-align: right;
+            padding-right:10dip;
+        }
+        .setting-select{
+            width:100dip;
+            height:32dip;
+            line-height:32dip;
+            border: none;
+            font-size:1em;
+            color: #FCFCFC;
+            cursor: pointer;
+            margin-right:2dip;
+            padding: 2dip;
+            background:none;
         }
 
         /* 页面通用 */
@@ -159,10 +197,10 @@
             margin-top:20dip;
         }
         .card-icon1{
-            background:url(1.png) no-repeat center center;
+            background:url(embed://1.png) no-repeat center center;
         }
         .card-icon2{
-            background:url(2.png) no-repeat center center;
+            background:url(embed://2.png) no-repeat center center;
         }
         .create-card .card-icon {
             background: linear-gradient(135deg, #ff6b6b, #ff8e53);
@@ -277,7 +315,7 @@
         /* ========== Light-box Dialog Style ========== */
         .modal-overlay {
             position: fixed;
-            top: 0;
+            top: 42dip;
             left: 0;
             right: 0;
             bottom: 0;
@@ -335,8 +373,8 @@
         }
         
         .modal-footer {
-            padding: 15dip 20dip;
-            border-top: 1dip solid #393d46;
+            padding: 10dip 20dip;
+            border-top: 1dip solid #343840;
             text-align: right;
         }
         .btn {
@@ -362,12 +400,14 @@
         #join-code-container {
             flow: vertical;
             vertical-align: center;
-            padding:10px;
+            padding:5dip;
         }
 
         #join-code{
+            background: #444954;
+            color:#FCFCFC;
             width:*;
-            padding:5dip;
+            padding:10dip;
             border-radius: 5dip;
             margin-bottom: 5dip;
         }
@@ -451,7 +491,7 @@
 </head>
 <body>
    <div id="title-bar" -gohl-drag>
-		<div class="soft-name"><span.red>❤</span>网游精灵<i>v5.0.0</i></div>
+		<div class="soft-name"><span.red>❤</span>联机助手<i>v5.0.0</i></div>
 		<div>
 			<button id="min-btn" class="window-btn" -gohl-min>-</button>
 			<button id="close-btn" class="window-btn" -gohl-close>×</button>
@@ -466,8 +506,8 @@
         <!-- 1. 主界面 -->
         <div class="page active" id="main">
             <div class="container">
-                <h1 class="title">网游精灵</h1>
-                <p class="subtitle">懂你的联机工具</p>
+                <h1 class="title">联机助手</h1>
+                <p class="subtitle">●单机游戏一键联机工具</p>
 
                 <div class="card-list">
                     <div class="action-card create-card" id="btn-create" role="show-modal">
@@ -551,7 +591,7 @@
 	<div class="modal-overlay" role="modal-overlay" id="modal01">
 		<div class="modal" role="modal-dialog">
 			<div class="modal-header">
-				<div role="modal-title".big>对话框标题</div>
+				<div><i.dot.red>●</i> <span role="modal-title".big>对话框标题</span></div>
 				<button class="modal-close" role="modal-close">×</button>
 			</div>
 			<div class="modal-body" role="modal-body">
@@ -562,6 +602,34 @@
 				<button class="btn btn-primary" role="modal-ok">确定</button>
 			</div>
 		</div>
+	</div>
+
+    <!-- Modal Overlay -->
+	<div class="modal-overlay" role="modal-overlay" id="modal-setting">
+		<div class="modal" role="modal-dialog">
+			<div class="modal-header">
+				<div><i.dot.red>●</i> <span role="modal-title".big>设置</span></div>
+				<button class="modal-close" role="modal-close">×</button>
+			</div>
+			<div class="modal-body" role="modal-body">
+                <div class="setting-item">官方网站</div>
+                <div class="setting-item">模式切换</div>
+				<div class="setting-item">
+					<span class="setting-label">线路切换</span>
+					<select class="setting-select">
+						<option value="1">1</option>
+						<option value="2">2</option>
+					</select>
+				</div>
+                <div class="setting-item">使用帮助</div>
+			</div>
+		</div>
+	</div>
+
+
+     <!-- Loading Overlay -->
+	<div class="modal-overlay" role="modal-overlay" id="loading">
+		<div class="center">Loading</div>
 	</div>
 </body>
 </html>

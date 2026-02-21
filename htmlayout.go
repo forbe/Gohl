@@ -545,7 +545,6 @@ func DetachWindowEventHandler(hwnd uint32) {
 	key := uintptr(hwnd)
 	handle, exists := windowEventHandles[hwnd]
 	if !exists {
-		log.Printf("[DetachWindowEventHandler] hwnd=%d not found in windowEventHandles, map has %d entries", hwnd, len(windowEventHandles))
 		return
 	}
 	tag := uintptr(handle)
@@ -554,12 +553,9 @@ func DetachWindowEventHandler(hwnd uint32) {
 	HTMLayoutWindowDetachEventHandler(key, uintptr(goElementProc), tag)
 	func() {
 		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[DetachWindowEventHandler] handle already deleted: %v", r)
-			}
+			recover()
 		}()
 		handle.Delete()
-		log.Printf("[DetachWindowEventHandler] hwnd=%d detached successfully", hwnd)
 	}()
 }
 

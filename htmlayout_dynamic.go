@@ -180,7 +180,7 @@ func mustFindProc(name string) *syscall.Proc {
 		fmt.Printf("找不到函数 %s: %v\n", name, err)
 		return nil
 	}
-	fmt.Printf("加载函数 %s: %v\n", name, proc.Addr())
+	// fmt.Printf("加载函数 %s: %v\n", name, proc.Addr())
 	return proc
 }
 
