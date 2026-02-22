@@ -111,16 +111,17 @@ const (
 	WS_CLIPSIBLINGS     = 0x04000000
 	WS_EX_LAYERED       = 0x00080000
 
-	WM_DESTROY    = 0x0002
-	WM_CREATE     = 0x0001
-	WM_CLOSE      = 0x0010
-	WM_ERASEBKGND = 0x0014
-	WM_NCHITTEST  = 0x0084
-	WM_NCCALCSIZE = 0x0083
-	WM_NCPAINT    = 0x0085
-	WM_NCACTIVATE = 0x0086
-	WM_TIMER      = 0x0113
-	WM_USER       = 0x0400
+	WM_DESTROY     = 0x0002
+	WM_CREATE      = 0x0001
+	WM_CLOSE       = 0x0010
+	WM_ERASEBKGND  = 0x0014
+	WM_NCHITTEST   = 0x0084
+	WM_NCCALCSIZE  = 0x0083
+	WM_NCPAINT     = 0x0085
+	WM_NCACTIVATE  = 0x0086
+	WM_TIMER       = 0x0113
+	WM_USER        = 0x0400
+	WM_INVOKE_TASK = WM_USER + 100
 
 	HTCLIENT      = 1
 	HTCAPTION     = 2
@@ -211,6 +212,36 @@ type U struct {
 type ElementHandler func(elem *Element) bool
 type MouseHandler func(elem *Element, params *MouseParams) bool
 
+type Dispatcher struct {
+	mu    sync.Mutex
+	tasks []func()
+	hwnd  uintptr
+}
+
+func NewDispatcher(hwnd uintptr) *Dispatcher {
+	return &Dispatcher{
+		hwnd:  hwnd,
+		tasks: make([]func(), 0),
+	}
+}
+
+func (d *Dispatcher) Dispatch(f func()) {
+	d.mu.Lock()
+	d.tasks = append(d.tasks, f)
+	d.mu.Unlock()
+	procPostMessage.Call(d.hwnd, WM_INVOKE_TASK, 0, 0)
+}
+
+func (d *Dispatcher) ProcessTasks() {
+	d.mu.Lock()
+	tasks := d.tasks
+	d.tasks = nil
+	d.mu.Unlock()
+	for _, task := range tasks {
+		task()
+	}
+}
+
 type Window struct {
 	hwnd          uint32
 	config        WindowConfig
@@ -223,6 +254,7 @@ type Window struct {
 	nextTimerId   int
 	timerHandler  *EventHandler
 	closing       bool
+	dispatcher    *Dispatcher
 
 	OnMouseDown              MouseHandler
 	OnMouseUp                MouseHandler
@@ -282,34 +314,19 @@ func (w *Window) SetNotifyHandler(handler *NotifyHandler) *Window {
 	return w
 }
 
-var loadedResources = make(map[string][]byte)
-
-var (
-	dispatchQueue = make(chan func())
-	dispatchOnce  sync.Once
-)
-
 type ResourceLoader func(uri string) ([]byte, uint32, bool)
 
 var resourceLoaders = make(map[string]ResourceLoader)
+var loadedResources = make(map[string][]byte)
 
 func RegisterResourceLoader(scheme string, loader ResourceLoader) {
 	resourceLoaders[scheme] = loader
 }
 
-func Dispatch(fn func()) {
-	dispatchOnce.Do(func() {
-		go func() {
-			for fn := range dispatchQueue {
-				fn()
-			}
-		}()
-	})
-	dispatchQueue <- fn
-}
-
 func (w *Window) Dispatch(fn func()) {
-	Dispatch(fn)
+	if w.dispatcher != nil {
+		w.dispatcher.Dispatch(fn)
+	}
 }
 
 func defaultOnLoadData(params *NmhlLoadData) uintptr {
@@ -552,6 +569,7 @@ func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintpt
 	switch msg {
 	case WM_CREATE:
 		w.hwnd = uint32(hwnd)
+		w.dispatcher = NewDispatcher(hwnd)
 		// HTMLAYOUT_FONT_SMOOTHING = 4, // value: 0 - system default, 1 - no smoothing, 2 - std smoothing, 3 - clear type
 		SetOption(uint32(hwnd), HTMLAYOUT_FONT_SMOOTHING, 4)
 		SetOption(uint32(hwnd), HTMLAYOUT_ANIMATION_THREAD, 1)
@@ -633,6 +651,12 @@ func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintpt
 
 	case WM_DESTROY:
 		postQuitMessage(0)
+		return 0
+
+	case WM_INVOKE_TASK:
+		if w.dispatcher != nil {
+			w.dispatcher.ProcessTasks()
+		}
 		return 0
 
 	// 处理托盘图标消息
