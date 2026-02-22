@@ -361,6 +361,9 @@ func (e *Element) FindParentByAttr(attrName, attrValue string) *Element {
 			return parent
 		}
 		parent = parent.Parent()
+		if parent == nil {
+			break
+		}
 	}
 	return nil
 }
