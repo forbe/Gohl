@@ -52,7 +52,7 @@ func main() {
 		Behaviors: map[string]*gohl.EventHandler{},
 	})
 
-	gw.OnClick = func(elem *gohl.Element) {
+	gw.OnClick = func(elem *gohl.Element) bool {
 		role, _ := elem.Attr("role")
 		id, _ := elem.Attr("id")
 		switch role {
@@ -60,7 +60,7 @@ func main() {
 			if id == "btn-create" {
 				// showLoading(true)
 				alert("请先创建游戏")
-				return
+				return true
 			}
 			if id == "btn-join" {
 				html := `
@@ -78,7 +78,7 @@ func main() {
 					`
 				}
 				showModal("modal01", "请输入联机码", html)
-				return
+				return true
 			}
 			showModal("modal01", "示例对话框", "这是一个模态对话框示例。\n点击确定或取消关闭对话框。")
 		case "show-confirm":
@@ -96,7 +96,7 @@ func main() {
 				code := joinCode.Text()
 				if len(code) < 6 {
 					showNotification("不正确的联机码")
-					return
+					return true
 				}
 				store.Set("last-code", code)
 			}
@@ -110,6 +110,7 @@ func main() {
 				tray.Remove()
 			}
 		}
+		return false
 	}
 
 	gw.OnMinimize = func() bool {
@@ -121,7 +122,7 @@ func main() {
 		return false
 	}
 
-	gw.OnHyperlinkClick = func(elem *gohl.Element) {
+	gw.OnHyperlinkClick = func(elem *gohl.Element) bool {
 		id, _ := elem.Attr("id")
 		switch id {
 		case "join-code-history":
@@ -136,6 +137,7 @@ func main() {
 		default:
 			showNotification("点击了超链接")
 		}
+		return false
 	}
 
 	gw.LoadFile("demo2.html").Run()

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -207,7 +208,7 @@ type U struct {
 	Value  interface{} `json:"value"`
 }
 
-type ElementHandler func(elem *Element)
+type ElementHandler func(elem *Element) bool
 type MouseHandler func(elem *Element, params *MouseParams) bool
 
 type Window struct {
@@ -735,6 +736,7 @@ func (w *Window) setupDefaultEventHandler() {
 			}
 			return false
 		},
+		// true 表示事件已处理(已消费)，false 表示未处理(未消费)
 		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
 			elem := NewElementFromHandle(params.Target)
 
@@ -801,8 +803,20 @@ func (w *Window) setupDefaultEventHandler() {
 
 			case HYPERLINK_CLICK:
 				if w.OnHyperlinkClick != nil {
-					w.OnHyperlinkClick(elem)
-					return true
+					target, ok := elem.Attr("target")
+					if !ok {
+						return true
+					}
+					if target == "@system" {
+						href, ok := elem.Attr("href")
+						if !ok {
+							return false
+						}
+						log.Println("点击了超链接: " + href)
+						exec.Command("cmd", "/c", "start", href).Start()
+						return true
+					}
+					return w.OnHyperlinkClick(elem)
 				}
 			}
 			return false
