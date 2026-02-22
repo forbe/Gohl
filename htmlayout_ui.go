@@ -803,20 +803,13 @@ func (w *Window) setupDefaultEventHandler() {
 
 			case HYPERLINK_CLICK:
 				if w.OnHyperlinkClick != nil {
-					target, ok := elem.Attr("target")
+					href, ok := elem.Attr("@href")
 					if !ok {
-						return true
+						return w.OnHyperlinkClick(elem)
 					}
-					if target == "@system" {
-						href, ok := elem.Attr("href")
-						if !ok {
-							return false
-						}
-						log.Println("点击了超链接: " + href)
-						exec.Command("cmd", "/c", "start", href).Start()
-						return true
-					}
-					return w.OnHyperlinkClick(elem)
+					log.Println("点击了超链接: " + href)
+					exec.Command("cmd", "/c", "start", href).Start()
+					return true
 				}
 			}
 			return false
