@@ -543,6 +543,14 @@ func (w *Window) Run() {
 	procShowWindow.Call(uintptr(hwnd), SW_SHOW)
 	procUpdateWindow.Call(uintptr(hwnd))
 
+	//检查是否有fontAwesome.css并加载
+	cssPath := filepath.Join(resourcesDir, "fontAwesome.css")
+	if _, err := os.Stat(cssPath); err == nil {
+		if css, err := os.ReadFile(cssPath); err == nil {
+			HTMLayoutSetMasterCSS(uintptr(hwnd), (*byte)(unsafe.Pointer(&css[0])), uint32(len(css)))
+		}
+	}
+
 	var msg Msg
 	for {
 		if r, errno := getMessage(&msg, 0, 0, 0); errno != ERROR_SUCCESS {

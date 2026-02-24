@@ -105,6 +105,7 @@ var (
 	procHTMLayoutGetElementLocation       *syscall.Proc
 	procHTMLayout_UseElement              *syscall.Proc
 	procHTMLayout_UnuseElement            *syscall.Proc
+	procHTMLayoutSetMasterCSS             *syscall.Proc
 )
 
 func initHtmlayoutFunctions() {
@@ -172,6 +173,7 @@ func initHtmlayoutFunctions() {
 	procHTMLayoutGetElementLocation = mustFindProc("HTMLayoutGetElementLocation")
 	procHTMLayout_UseElement = mustFindProc("HTMLayout_UseElement")
 	procHTMLayout_UnuseElement = mustFindProc("HTMLayout_UnuseElement")
+	procHTMLayoutSetMasterCSS = mustFindProc("HTMLayoutSetMasterCSS")
 }
 
 func mustFindProc(name string) *syscall.Proc {
@@ -653,6 +655,14 @@ func HTMLayoutGetElementLocation(handle uintptr, location *Rect, areas uint32) i
 		return -1
 	}
 	ret, _, _ := procHTMLayoutGetElementLocation.Call(handle, uintptr(unsafe.Pointer(location)), uintptr(areas))
+	return int(ret)
+}
+
+func HTMLayoutSetMasterCSS(handle uintptr, css *byte, cssLength uint32) int {
+	if procHTMLayoutSetMasterCSS == nil {
+		return -1
+	}
+	ret, _, _ := procHTMLayoutSetMasterCSS.Call(handle, uintptr(unsafe.Pointer(css)), uintptr(cssLength))
 	return int(ret)
 }
 
