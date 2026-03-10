@@ -287,6 +287,17 @@ var goElementProc = syscall.NewCallback(func(tag uintptr, he unsafe.Pointer, evt
 				handler.OnDetached(HELEMENT(he))
 			}
 
+			// Clean up from eventHandlers map
+			if attachedHandlers, exists := eventHandlers[HELEMENT(he)]; exists {
+				delete(attachedHandlers, handler)
+				if len(attachedHandlers) == 0 {
+					delete(eventHandlers, HELEMENT(he))
+				}
+			}
+
+			// Clean up from elementEventHandlers map
+			delete(elementEventHandlers, HELEMENT(he))
+
 			if behaviorRefCount, exists := behaviors[handler]; exists {
 				behaviorRefCount--
 				if behaviorRefCount == 0 {

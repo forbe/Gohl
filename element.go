@@ -190,18 +190,18 @@ func FocusedElement(hwnd uint32) *Element {
 }
 
 func (e *Element) finalize() {
+	// Clean up elementEventHandlers first
+	delete(elementEventHandlers, e.handle)
+
 	// Detach handlers and clean up cgo handles
 	if attachedHandlers, hasHandlers := eventHandlers[e.handle]; hasHandlers {
 		for handler, tag := range attachedHandlers {
 			HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag))
-			tag.Delete()
+			// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
 			delete(attachedHandlers, handler)
 		}
 		delete(eventHandlers, e.handle)
 	}
-
-	// Clean up elementEventHandlers
-	delete(elementEventHandlers, e.handle)
 
 	e.handle = BAD_HELEMENT
 }
@@ -275,7 +275,7 @@ func (e *Element) DetachHandler(handler *EventHandler) {
 			if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
 				domPanic(ret, "Failed to detach event handler from element")
 			}
-			tag.Delete()
+			// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
 			delete(attachedHandlers, handler)
 			if len(attachedHandlers) == 0 {
 				delete(eventHandlers, e.handle)
@@ -344,18 +344,25 @@ func (e *Element) UnBind(eventType string) {
 		delete(elementEventHandlers, e.handle)
 	}
 
-	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), 0); ret != HLDOM_OK {
+	// Get the cgo.Handle for this handler
+	attachedHandlers, hasAttached := eventHandlers[e.handle]
+	if !hasAttached {
+		return
+	}
+	tag, hasTag := attachedHandlers[handler]
+	if !hasTag {
 		return
 	}
 
-	if attachedHandlers, exists := eventHandlers[e.handle]; exists {
-		if tag, found := attachedHandlers[handler]; found {
-			tag.Delete()
-			delete(attachedHandlers, handler)
-			if len(attachedHandlers) == 0 {
-				delete(eventHandlers, e.handle)
-			}
-		}
+	// Detach from HTMLayout with correct tag
+	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
+		return
+	}
+
+	// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
+	delete(attachedHandlers, handler)
+	if len(attachedHandlers) == 0 {
+		delete(eventHandlers, e.handle)
 	}
 }
 
