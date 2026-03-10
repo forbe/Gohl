@@ -3,7 +3,6 @@ package gohl
 import (
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -136,7 +135,8 @@ func unuse(handle HELEMENT) {
 }
 
 type Element struct {
-	handle HELEMENT
+	handle        HELEMENT
+	eventHandlers map[string]*EventHandler
 }
 
 // Constructors
@@ -144,7 +144,7 @@ func NewElementFromHandle(h HELEMENT) *Element {
 	if h == BAD_HELEMENT {
 		return nil
 	}
-	e := &Element{BAD_HELEMENT}
+	e := &Element{BAD_HELEMENT, nil}
 	e.setHandle(h)
 	runtime.SetFinalizer(e, (*Element).finalize)
 	return e
@@ -191,19 +191,6 @@ func FocusedElement(hwnd uint32) *Element {
 }
 
 func (e *Element) finalize() {
-	// Clean up elementEventHandlers first
-	delete(elementEventHandlers, e.handle)
-
-	// Detach handlers and clean up cgo handles
-	if attachedHandlers, hasHandlers := eventHandlers[e.handle]; hasHandlers {
-		for handler, tag := range attachedHandlers {
-			HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag))
-			// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
-			delete(attachedHandlers, handler)
-		}
-		delete(eventHandlers, e.handle)
-	}
-
 	e.handle = BAD_HELEMENT
 }
 
@@ -241,17 +228,12 @@ func (e *Element) attachBehavior(handler *EventHandler) {
 }
 
 func (e *Element) AttachHandler(handler *EventHandler) {
-	attachedHandlers, hasAttachments := eventHandlers[e.handle]
-	if hasAttachments {
-		if _, exists := attachedHandlers[handler]; exists {
-			return
-		}
-	}
-
 	subscription := handler.Subscription()
 	subscription &= ^uint32(DISABLE_INITIALIZATION & 0xffffffff)
 
 	tag := cgo.NewHandle(handler)
+	//将tag保存起来
+	handler.handle = tag
 	if subscription == HANDLE_ALL {
 		if ret := HTMLayoutAttachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
 			tag.Delete()
@@ -263,163 +245,64 @@ func (e *Element) AttachHandler(handler *EventHandler) {
 			domPanic(ret, "Failed to attach event handler to element")
 		}
 	}
-
-	if !hasAttachments {
-		eventHandlers[e.handle] = make(map[*EventHandler]cgo.Handle, 8)
-	}
-	eventHandlers[e.handle][handler] = tag
 }
 
 func (e *Element) DetachHandler(handler *EventHandler) {
-	if attachedHandlers, exists := eventHandlers[e.handle]; exists {
-		if tag, exists := attachedHandlers[handler]; exists {
-			if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
-				domPanic(ret, "Failed to detach event handler from element")
-			}
-			// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
-			delete(attachedHandlers, handler)
-			if len(attachedHandlers) == 0 {
-				delete(eventHandlers, e.handle)
-			}
-			return
-		}
+	if handler.handle == 0 {
+		return // 或者返回错误，说明没被 Attach 过
 	}
-	panic("cannot detach, handler was not registered")
+	// 使用保存的那个 handle 进行卸载
+	ret := HTMLayoutDetachEventHandler(
+		uintptr(e.handle),
+		uintptr(unsafe.Pointer(goElementProc)),
+		uintptr(handler.handle), // 这里传入的是原始的 Tag
+	)
+
+	if ret != HLDOM_OK {
+		domPanic(ret, "Failed to detach")
+	}
+
+	// htmlayout里面已经处理销毁的情况了: cgo.Handle(tag).Delete()
+	//所以我们只是赋值为0即可
+	handler.handle = 0
+}
+
+func (e *Element) SetOnClick(f func(owner *Element, params *BehaviorEventParams) bool) *EventHandler {
+	if e.eventHandlers == nil {
+		e.eventHandlers = make(map[string]*EventHandler)
+	}
+	// 1. 如果之前已经设置过，先移除它
+	e.RemoveOnClick(e.eventHandlers["click"])
+	handler := &EventHandler{
+		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
+			// 将 HELEMENT 转换为 *Element
+			elem := &Element{handle: he}
+			return f(elem, params)
+		},
+	}
+	e.AttachHandler(handler)
+	e.eventHandlers["click"] = handler
+	return handler
+}
+
+// RemoveOnClick 只需要传入之前返回的 handler
+func (e *Element) RemoveOnClick(handler *EventHandler) {
+	if handler == nil || handler.handle == 0 {
+		return
+	}
+	e.DetachHandler(handler)
 }
 
 type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
 
-var elementEventHandlers = make(map[HELEMENT]map[string]*EventHandler)
-
 func (e *Element) Bind(eventType string, handler ElementEventHandler) {
-	// Unbind existing handler for this eventType first
-	if elementEventHandlers[e.handle] != nil {
-		if existingHandler, exists := elementEventHandlers[e.handle][eventType]; exists && existingHandler != nil {
-			e.UnBind(eventType)
-		}
-	}
-
-	if elementEventHandlers[e.handle] == nil {
-		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
-	}
-
-	handlerWrap := func(he HELEMENT, params *BehaviorEventParams) bool {
-		elem := &Element{handle: he}
-		return handler(elem, params)
-	}
-
 	eventHandler := &EventHandler{
-		OnBehaviorEvent: handlerWrap,
-	}
-	elementEventHandlers[e.handle][eventType] = eventHandler
-	e.AttachHandler(eventHandler)
-}
-
-func (e *Element) BindOnce(eventType string, handler ElementEventHandler) {
-	// Unbind existing handler for this eventType first
-	if elementEventHandlers[e.handle] != nil {
-		if existingHandler, exists := elementEventHandlers[e.handle][eventType]; exists && existingHandler != nil {
-			e.UnBind(eventType)
-		}
-	}
-
-	if elementEventHandlers[e.handle] == nil {
-		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
-	}
-
-	var eventHandler *EventHandler
-	eventHandler = &EventHandler{
 		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
 			elem := &Element{handle: he}
-			result := handler(elem, params)
-			if result {
-				go func() {
-					e.UnBind(eventType)
-				}()
-			}
-			return result
+			return handler(elem, params)
 		},
 	}
-	elementEventHandlers[e.handle][eventType] = eventHandler
 	e.AttachHandler(eventHandler)
-}
-
-func (e *Element) UnBind(eventType string) {
-	handlers, exists := elementEventHandlers[e.handle]
-	if !exists {
-		return
-	}
-	handler, found := handlers[eventType]
-	if !found || handler == nil {
-		return
-	}
-
-	delete(handlers, eventType)
-	if len(handlers) == 0 {
-		delete(elementEventHandlers, e.handle)
-	}
-
-	// Get the cgo.Handle for this handler
-	attachedHandlers, hasAttached := eventHandlers[e.handle]
-	if !hasAttached {
-		return
-	}
-	tag, hasTag := attachedHandlers[handler]
-	if !hasTag {
-		return
-	}
-
-	// Detach from HTMLayout with correct tag
-	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
-		return
-	}
-
-	// Note: cgo.Handle is deleted by BEHAVIOR_DETACH callback
-	delete(attachedHandlers, handler)
-	if len(attachedHandlers) == 0 {
-		delete(eventHandlers, e.handle)
-	}
-}
-
-func (e *Element) UnBindAll() {
-	handlers, exists := elementEventHandlers[e.handle]
-	if !exists {
-		return
-	}
-	for eventType := range handlers {
-		e.UnBind(eventType)
-	}
-}
-
-func (e *Element) OnClick(handler func(elem *Element)) {
-	e.Bind("click", func(elem *Element, params *BehaviorEventParams) bool {
-		if params.Cmd != BUTTON_CLICK {
-			return false
-		}
-		handler(elem)
-		return false
-	})
-}
-
-func (e *Element) OnChange(handler func(elem *Element)) {
-	e.Bind("change", func(elem *Element, params *BehaviorEventParams) bool {
-		if params.Cmd != EDIT_VALUE_CHANGED && params.Cmd != SELECT_SELECTION_CHANGED {
-			return false
-		}
-		handler(elem)
-		return false
-	})
-}
-
-func (e *Element) OnClickOnce(handler func(elem *Element)) {
-	e.BindOnce("click", func(elem *Element, params *BehaviorEventParams) bool {
-		log.Println("clicked", params.Cmd)
-		if params.Cmd != BUTTON_CLICK {
-			return false
-		}
-		handler(elem)
-		return true
-	})
 }
 
 func (e *Element) Update(restyle, restyleDeep, remeasure, remeasureDeep, render bool) {

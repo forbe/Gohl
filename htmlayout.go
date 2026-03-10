@@ -33,6 +33,7 @@ type EventHandler struct {
 	OnScroll        func(he HELEMENT, params *ScrollParams) bool
 	OnExchange      func(he HELEMENT, params *ExchangeParams) bool
 	OnGesture       func(he HELEMENT, params *GestureParams) bool
+	handle          cgo.Handle
 }
 
 func (e *EventHandler) Subscription() uint32 {
@@ -88,7 +89,6 @@ var (
 	notifyHandlers      = make(map[uintptr]*NotifyHandler, 8)
 	windowEventHandlers = make(map[uint32]*EventHandler, 8)
 	windowEventHandles  = make(map[uint32]cgo.Handle, 8)
-	eventHandlers       = make(map[HELEMENT]map[*EventHandler]cgo.Handle, 128)
 	behaviors           = make(map[*EventHandler]int, 32)
 )
 
@@ -265,15 +265,25 @@ type NmhlAttachBehavior struct {
 
 // Main event handler that dispatches to the right element handler
 var goElementProc = syscall.NewCallback(func(tag uintptr, he unsafe.Pointer, evtg uint32, params unsafe.Pointer) uintptr {
-	defer func() { recover() }()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[goElementProc] PANIC: %v", r)
+		}
+	}()
 
 	if tag == 0 || params == nil || he == nil {
 		return 0
 	}
-	handler := cgo.Handle(tag).Value().(*EventHandler)
-	if handler == nil {
+
+	handlerVal := cgo.Handle(tag).Value()
+	if handlerVal == nil {
 		return 0
 	}
+	handler, ok := handlerVal.(*EventHandler)
+	if !ok || handler == nil {
+		return 0
+	}
+
 	handled := false
 
 	switch evtg {
@@ -286,17 +296,6 @@ var goElementProc = syscall.NewCallback(func(tag uintptr, he unsafe.Pointer, evt
 			if handler.OnDetached != nil {
 				handler.OnDetached(HELEMENT(he))
 			}
-
-			// Clean up from eventHandlers map
-			if attachedHandlers, exists := eventHandlers[HELEMENT(he)]; exists {
-				delete(attachedHandlers, handler)
-				if len(attachedHandlers) == 0 {
-					delete(eventHandlers, HELEMENT(he))
-				}
-			}
-
-			// Clean up from elementEventHandlers map
-			delete(elementEventHandlers, HELEMENT(he))
 
 			if behaviorRefCount, exists := behaviors[handler]; exists {
 				behaviorRefCount--
@@ -330,10 +329,8 @@ var goElementProc = syscall.NewCallback(func(tag uintptr, he unsafe.Pointer, evt
 			handled = handler.OnDraw(HELEMENT(he), p)
 		}
 	case HANDLE_TIMER:
-		log.Printf("[goElementProc] HANDLE_TIMER received, he=%v, params=%v", he, params)
 		if handler.OnTimer != nil {
 			p := (*TimerParams)(params)
-			log.Printf("[goElementProc] TimerParams.TimerId=%d", p.TimerId)
 			handled = handler.OnTimer(HELEMENT(he), p)
 		}
 	case HANDLE_BEHAVIOR_EVENT:
@@ -589,5 +586,4 @@ func DetachNotifyHandler(hwnd uint32) {
 func DumpObjectCounts() {
 	log.Print("Window notify handlers (", len(notifyHandlers), "): ", notifyHandlers)
 	log.Print("Window event handlers (", len(windowEventHandlers), "): ", windowEventHandlers)
-	log.Print("Element event handlers (", len(eventHandlers), "): ", eventHandlers)
 }

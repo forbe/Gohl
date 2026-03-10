@@ -210,6 +210,7 @@ type U struct {
 }
 
 type ElementHandler func(elem *Element) bool
+type ClickHandler func(elem *Element, params *BehaviorEventParams) bool
 type MouseHandler func(elem *Element, params *MouseParams) bool
 
 type Dispatcher struct {
@@ -258,7 +259,7 @@ type Window struct {
 
 	OnMouseDown              MouseHandler
 	OnMouseUp                MouseHandler
-	OnClick                  ElementHandler
+	OnClick                  ClickHandler
 	OnEditValueChanging      ElementHandler
 	OnEditValueChanged       ElementHandler
 	OnSelectSelectionChanged ElementHandler
@@ -556,20 +557,9 @@ func (w *Window) Run() {
 }
 
 func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
-	// 如果窗口正在关闭，只处理关键消息
-	if w.closing {
-		switch msg {
-		case WM_DESTROY:
-			postQuitMessage(0)
-			return 0
-		case WM_INVOKE_TASK:
-			if w.dispatcher != nil {
-				w.dispatcher.ProcessTasks()
-			}
-			return 0
-		default:
-			return defWindowProc(uint32(hwnd), msg, wparam, lparam)
-		}
+	// 如果窗口正在关闭，跳过 HTMLayout 处理
+	if w.closing && msg != WM_DESTROY {
+		return defWindowProc(uint32(hwnd), msg, wparam, lparam)
 	}
 
 	result, handled := ProcNoDefault(uint32(hwnd), msg, wparam, lparam)
@@ -801,9 +791,15 @@ func (w *Window) setupDefaultEventHandler() {
 					w.Close()
 					return true
 				}
-				if w.OnClick != nil {
-					w.OnClick(elem)
-					return true
+				//调用 elem.SetOnClick(fn)  传递进来的fn
+				if handler, ok := elem.eventHandlers["click"]; ok {
+					return handler.OnBehaviorEvent(elem.handle, nil)
+				} else {
+					//否则调用window的OnClick函数里面的绑定函数
+					if w.OnClick != nil {
+						w.OnClick(elem, params)
+						return true
+					}
 				}
 
 			case EDIT_VALUE_CHANGING:
