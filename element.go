@@ -286,9 +286,13 @@ func (e *Element) DetachHandler(handler *EventHandler) {
 
 type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
 
-var elementEventHandlers = make(map[HELEMENT]*EventHandler)
+var elementEventHandlers = make(map[HELEMENT]map[string]*EventHandler)
 
 func (e *Element) Bind(eventType string, handler ElementEventHandler) {
+	if elementEventHandlers[e.handle] == nil {
+		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
+	}
+
 	handlerWrap := func(he HELEMENT, params *BehaviorEventParams) bool {
 		elem := &Element{handle: he}
 		return handler(elem, params)
@@ -297,40 +301,51 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 	eventHandler := &EventHandler{
 		OnBehaviorEvent: handlerWrap,
 	}
-	elementEventHandlers[e.handle] = eventHandler
+	elementEventHandlers[e.handle][eventType] = eventHandler
 	e.AttachHandler(eventHandler)
 }
 
 func (e *Element) BindOnce(eventType string, handler ElementEventHandler) {
-	wrappedHandler := func(he HELEMENT, params *BehaviorEventParams) bool {
-		elem := &Element{handle: he}
-		result := handler(elem, params)
-		e.UnBind(eventType)
-		return result
+	if elementEventHandlers[e.handle] == nil {
+		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
 	}
 
-	eventHandler := &EventHandler{
-		OnBehaviorEvent: wrappedHandler,
+	var eventHandler *EventHandler
+	eventHandler = &EventHandler{
+		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
+			elem := &Element{handle: he}
+			result := handler(elem, params)
+			if result {
+				go func() {
+					e.UnBind(eventType)
+				}()
+			}
+			return result
+		},
 	}
-	elementEventHandlers[e.handle] = eventHandler
+	elementEventHandlers[e.handle][eventType] = eventHandler
 	e.AttachHandler(eventHandler)
 }
 
 func (e *Element) UnBind(eventType string) {
-	handler, exists := elementEventHandlers[e.handle]
-	if !exists || handler == nil {
+	handlers, exists := elementEventHandlers[e.handle]
+	if !exists {
+		return
+	}
+	handler, found := handlers[eventType]
+	if !found || handler == nil {
 		return
 	}
 
-	// Delete from map first to prevent double unbind
-	delete(elementEventHandlers, e.handle)
+	delete(handlers, eventType)
+	if len(handlers) == 0 {
+		delete(elementEventHandlers, e.handle)
+	}
 
-	// Try to detach from HTMLayout
 	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), 0); ret != HLDOM_OK {
 		return
 	}
 
-	// Clean up from eventHandlers
 	if attachedHandlers, exists := eventHandlers[e.handle]; exists {
 		if tag, found := attachedHandlers[handler]; found {
 			tag.Delete()
@@ -339,6 +354,16 @@ func (e *Element) UnBind(eventType string) {
 				delete(eventHandlers, e.handle)
 			}
 		}
+	}
+}
+
+func (e *Element) UnBindAll() {
+	handlers, exists := elementEventHandlers[e.handle]
+	if !exists {
+		return
+	}
+	for eventType := range handlers {
+		e.UnBind(eventType)
 	}
 }
 
@@ -359,6 +384,16 @@ func (e *Element) OnChange(handler func(elem *Element)) {
 		}
 		handler(elem)
 		return false
+	})
+}
+
+func (e *Element) OnClickOnce(handler func(elem *Element)) {
+	e.BindOnce("click", func(elem *Element, params *BehaviorEventParams) bool {
+		if params.Cmd != BUTTON_CLICK {
+			return false
+		}
+		handler(elem)
+		return true
 	})
 }
 
