@@ -281,6 +281,34 @@ func (e *Element) DetachHandler(handler *EventHandler) {
 	panic("cannot detach, handler was not registered")
 }
 
+type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
+
+func (e *Element) Bind(eventType string, handler ElementEventHandler) {
+	handlerWrap := func(he HELEMENT, params *BehaviorEventParams) bool {
+		elem := &Element{handle: he}
+		return handler(elem, params)
+	}
+
+	eventHandler := &EventHandler{
+		OnBehaviorEvent: handlerWrap,
+	}
+	e.AttachHandler(eventHandler)
+}
+
+func (e *Element) OnClick(handler func(elem *Element)) {
+	e.Bind("click", func(elem *Element, params *BehaviorEventParams) bool {
+		handler(elem)
+		return false
+	})
+}
+
+func (e *Element) OnChange(handler func(elem *Element)) {
+	e.Bind("change", func(elem *Element, params *BehaviorEventParams) bool {
+		handler(elem)
+		return false
+	})
+}
+
 func (e *Element) Update(restyle, restyleDeep, remeasure, remeasureDeep, render bool) {
 	var flags uint32
 	if restyle {
