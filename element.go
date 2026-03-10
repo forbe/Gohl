@@ -329,6 +329,9 @@ func (e *Element) UnBind(eventType string) {
 
 func (e *Element) OnClick(handler func(elem *Element)) {
 	e.Bind("click", func(elem *Element, params *BehaviorEventParams) bool {
+		if params.Cmd != BUTTON_CLICK {
+			return false
+		}
 		handler(elem)
 		return false
 	})
@@ -336,6 +339,9 @@ func (e *Element) OnClick(handler func(elem *Element)) {
 
 func (e *Element) OnChange(handler func(elem *Element)) {
 	e.Bind("change", func(elem *Element, params *BehaviorEventParams) bool {
+		if params.Cmd != EDIT_VALUE_CHANGED && params.Cmd != SELECT_SELECTION_CHANGED {
+			return false
+		}
 		handler(elem)
 		return false
 	})
