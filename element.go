@@ -456,6 +456,9 @@ func (e *Element) GetElementsByTagName(tag string) []*Element {
 }
 
 func (e *Element) Show() *Element {
+	if e == nil {
+		return e
+	}
 	e.AddClass("show")
 	e.RemoveStyle("display")
 	e.Update(true, false, true, false, true)
@@ -463,6 +466,9 @@ func (e *Element) Show() *Element {
 }
 
 func (e *Element) Hide() *Element {
+	if e == nil {
+		return e
+	}
 	e.RemoveClass("show")
 	e.SetStyle("display", "none")
 	e.Update(true, false, true, false, true)
