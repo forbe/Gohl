@@ -190,10 +190,12 @@ func FocusedElement(hwnd uint32) *Element {
 }
 
 func (e *Element) finalize() {
-	// Detach handlers
+	// Detach handlers and clean up cgo handles
 	if attachedHandlers, hasHandlers := eventHandlers[e.handle]; hasHandlers {
-		for _, tag := range attachedHandlers {
+		for handler, tag := range attachedHandlers {
 			HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag))
+			tag.Delete()
+			delete(attachedHandlers, handler)
 		}
 		delete(eventHandlers, e.handle)
 	}
