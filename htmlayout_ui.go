@@ -556,9 +556,20 @@ func (w *Window) Run() {
 }
 
 func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr) uintptr {
-	// 如果窗口正在关闭，跳过 HTMLayout 处理
-	if w.closing && msg != WM_DESTROY {
-		return defWindowProc(uint32(hwnd), msg, wparam, lparam)
+	// 如果窗口正在关闭，只处理关键消息
+	if w.closing {
+		switch msg {
+		case WM_DESTROY:
+			postQuitMessage(0)
+			return 0
+		case WM_INVOKE_TASK:
+			if w.dispatcher != nil {
+				w.dispatcher.ProcessTasks()
+			}
+			return 0
+		default:
+			return defWindowProc(uint32(hwnd), msg, wparam, lparam)
+		}
 	}
 
 	result, handled := ProcNoDefault(uint32(hwnd), msg, wparam, lparam)
