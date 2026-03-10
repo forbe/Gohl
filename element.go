@@ -301,6 +301,21 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 	e.AttachHandler(eventHandler)
 }
 
+func (e *Element) BindOnce(eventType string, handler ElementEventHandler) {
+	wrappedHandler := func(he HELEMENT, params *BehaviorEventParams) bool {
+		elem := &Element{handle: he}
+		result := handler(elem, params)
+		e.UnBind(eventType)
+		return result
+	}
+
+	eventHandler := &EventHandler{
+		OnBehaviorEvent: wrappedHandler,
+	}
+	elementEventHandlers[e.handle] = eventHandler
+	e.AttachHandler(eventHandler)
+}
+
 func (e *Element) UnBind(eventType string) {
 	handler, exists := elementEventHandlers[e.handle]
 	if !exists || handler == nil {
