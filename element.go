@@ -3,6 +3,7 @@ package gohl
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -291,6 +292,13 @@ type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
 var elementEventHandlers = make(map[HELEMENT]map[string]*EventHandler)
 
 func (e *Element) Bind(eventType string, handler ElementEventHandler) {
+	// Unbind existing handler for this eventType first
+	if elementEventHandlers[e.handle] != nil {
+		if existingHandler, exists := elementEventHandlers[e.handle][eventType]; exists && existingHandler != nil {
+			e.UnBind(eventType)
+		}
+	}
+
 	if elementEventHandlers[e.handle] == nil {
 		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
 	}
@@ -308,6 +316,13 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 }
 
 func (e *Element) BindOnce(eventType string, handler ElementEventHandler) {
+	// Unbind existing handler for this eventType first
+	if elementEventHandlers[e.handle] != nil {
+		if existingHandler, exists := elementEventHandlers[e.handle][eventType]; exists && existingHandler != nil {
+			e.UnBind(eventType)
+		}
+	}
+
 	if elementEventHandlers[e.handle] == nil {
 		elementEventHandlers[e.handle] = make(map[string]*EventHandler)
 	}
@@ -398,6 +413,7 @@ func (e *Element) OnChange(handler func(elem *Element)) {
 
 func (e *Element) OnClickOnce(handler func(elem *Element)) {
 	e.BindOnce("click", func(elem *Element, params *BehaviorEventParams) bool {
+		log.Println("clicked", params.Cmd)
 		if params.Cmd != BUTTON_CLICK {
 			return false
 		}
