@@ -198,6 +198,9 @@ func (e *Element) finalize() {
 		delete(eventHandlers, e.handle)
 	}
 
+	// Clean up elementEventHandlers
+	delete(elementEventHandlers, e.handle)
+
 	e.handle = BAD_HELEMENT
 }
 
@@ -299,21 +302,22 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 }
 
 func (e *Element) UnBind(eventType string) {
-	handler := elementEventHandlers[e.handle]
-	if handler == nil {
+	handler, exists := elementEventHandlers[e.handle]
+	if !exists || handler == nil {
 		return
 	}
 
-	defer func() {
-		delete(elementEventHandlers, e.handle)
-	}()
+	// Delete from map first to prevent double unbind
+	delete(elementEventHandlers, e.handle)
 
+	// Try to detach from HTMLayout
 	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), 0); ret != HLDOM_OK {
 		return
 	}
 
+	// Clean up from eventHandlers
 	if attachedHandlers, exists := eventHandlers[e.handle]; exists {
-		if tag, exists := attachedHandlers[handler]; exists {
+		if tag, found := attachedHandlers[handler]; found {
 			tag.Delete()
 			delete(attachedHandlers, handler)
 			if len(attachedHandlers) == 0 {

@@ -265,6 +265,8 @@ type NmhlAttachBehavior struct {
 
 // Main event handler that dispatches to the right element handler
 var goElementProc = syscall.NewCallback(func(tag uintptr, he unsafe.Pointer, evtg uint32, params unsafe.Pointer) uintptr {
+	defer func() { recover() }()
+
 	if tag == 0 || params == nil || he == nil {
 		return 0
 	}
