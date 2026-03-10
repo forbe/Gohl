@@ -300,9 +300,26 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 
 func (e *Element) UnBind(eventType string) {
 	handler := elementEventHandlers[e.handle]
-	if handler != nil {
-		e.DetachHandler(handler)
+	if handler == nil {
+		return
+	}
+
+	defer func() {
 		delete(elementEventHandlers, e.handle)
+	}()
+
+	if ret := HTMLayoutDetachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), 0); ret != HLDOM_OK {
+		return
+	}
+
+	if attachedHandlers, exists := eventHandlers[e.handle]; exists {
+		if tag, exists := attachedHandlers[handler]; exists {
+			tag.Delete()
+			delete(attachedHandlers, handler)
+			if len(attachedHandlers) == 0 {
+				delete(eventHandlers, e.handle)
+			}
+		}
 	}
 }
 
