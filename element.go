@@ -283,6 +283,8 @@ func (e *Element) DetachHandler(handler *EventHandler) {
 
 type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
 
+var elementEventHandlers = make(map[HELEMENT]*EventHandler)
+
 func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 	handlerWrap := func(he HELEMENT, params *BehaviorEventParams) bool {
 		elem := &Element{handle: he}
@@ -292,7 +294,16 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 	eventHandler := &EventHandler{
 		OnBehaviorEvent: handlerWrap,
 	}
+	elementEventHandlers[e.handle] = eventHandler
 	e.AttachHandler(eventHandler)
+}
+
+func (e *Element) UnBind(eventType string) {
+	handler := elementEventHandlers[e.handle]
+	if handler != nil {
+		e.DetachHandler(handler)
+		delete(elementEventHandlers, e.handle)
+	}
 }
 
 func (e *Element) OnClick(handler func(elem *Element)) {
