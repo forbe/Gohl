@@ -680,9 +680,15 @@ func (w *Window) wndProc(hwnd uintptr, msg uint32, wparam uintptr, lparam uintpt
 }
 
 func (w *Window) hitTest(screenX, screenY int) int {
+	// 检查窗口是否仍然有效
+	if w.hwnd == 0 {
+		return HTCLIENT
+	}
 	// 将屏幕坐标转换为窗口客户区坐标
 	pt := struct{ X, Y int32 }{int32(screenX), int32(screenY)}
-	procScreenToClient.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&pt)))
+	if procScreenToClient != nil {
+		procScreenToClient.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&pt)))
+	}
 
 	// 查找该位置的元素
 	elem := FindElement(w.hwnd, int(pt.X), int(pt.Y))
