@@ -44,8 +44,6 @@ func main() {
         Center:       true,
     })
 
-    gw.SetNotifyHandler(&gohl.NotifyHandler{})
-
     gw.OnClick = func(elem *gohl.Element) {
         id, _ := elem.Attr("id")
         switch id {
@@ -75,6 +73,9 @@ type WindowConfig struct {
     Icon         uintptr // 窗口图标
     Rounded      bool    // 是否圆角窗口
     CornerRadius int     // 圆角半径
+    Handler: gohl.NotifyHandler{
+		OnDocumentComplete: func() uintptr { ... }
+	}
 }
 ```
 
@@ -100,7 +101,7 @@ type WindowConfig struct {
 
 ## 内置 Behaviors
 
-### Tabs
+### Tabs(未测试，谨慎)
 
 ```html
 <div class="tabs" behavior="tabs">
@@ -153,6 +154,14 @@ text := elem.Text()
 ## 事件处理
 
 ```go
+
+### 直接绑定（优先级高）
+var elem = gw.ElementById("some")
+ele.OnClick = func(elem *gohl.Element) bool {}
+ele.OnEditValueChanged = ...
+ele.On.... = 
+
+## 全局处理（优先级低）
 gw.OnClick = func(elem *gohl.Element) {
     // 处理点击事件
 }
@@ -164,6 +173,8 @@ gw.OnHyperlinkClick = func(elem *gohl.Element) {
 gw.OnEditValueChanged = func(elem *gohl.Element) {
     // 处理输入框值变化
 }
+
+
 ```
 
 ## 自定义 Behavior

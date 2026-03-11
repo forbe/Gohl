@@ -207,7 +207,7 @@ func NewElement(tagName string) *Element {
 func RootElement(hwnd uint32) *Element {
 	var handle uintptr = 0
 	if ret := HTMLayoutGetRootElement(uintptr(hwnd), &handle); ret != HLDOM_OK {
-		domPanic(ret, "Failed to get root element")
+		return nil
 	}
 	return NewElementFromHandle(HELEMENT(handle))
 }

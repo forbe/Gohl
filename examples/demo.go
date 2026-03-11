@@ -48,27 +48,33 @@ func main() {
 			OnDocumentComplete: func() uintptr {
 				log.Printf("OnDocumentComplete: %v", W.GetHwnd())
 				//弹窗
-				W.GetElementById("demo-btn").OnClick = func(elem *gohl.Element) bool {
-					showModal("default-modal", "提示", "你好，欢迎来到中国!", func(submit bool) bool {
+				demoBtn := W.GetElementById("demo-btn")
+				if demoBtn != nil {
+					demoBtn.OnClick = func(elem *gohl.Element) bool {
+						showModal("default-modal", "提示", "你好，欢迎来到中国!", func(submit bool) bool {
+							return true
+						}, nil)
 						return true
-					}, nil)
-					return true
+					}
 				}
 
 				//弹窗
-				W.GetElementById("demo-btn2").OnClick = func(elem *gohl.Element) bool {
-					W.UpdateUI(gohl.U{
-						ID:     "demo-img",
-						Action: "attr",
-						Value:  map[string]interface{}{"src": "http://bd.kuaishoua.com/787b568727c8f5ce.png"},
-					}, gohl.U{
-						ID:     "demo-tips",
-						Action: "text",
-						Value:  "你好，欢迎来到中国!",
-					})
+				demoBtn2 := W.GetElementById("demo-btn2")
+				if demoBtn2 != nil {
+					demoBtn2.OnClick = func(elem *gohl.Element) bool {
+						W.UpdateUI(gohl.U{
+							ID:     "demo-img",
+							Action: "attr",
+							Value:  map[string]interface{}{"src": "http://bd.kuaishoua.com/787b568727c8f5ce.png"},
+						}, gohl.U{
+							ID:     "demo-tips",
+							Action: "text",
+							Value:  "你好，欢迎来到中国!",
+						})
 
-					showNotification("已更新UI", 2*time.Second)
-					return true
+						showNotification("已更新UI", 2*time.Second)
+						return true
+					}
 				}
 
 				return W.GetHwnd()
@@ -126,7 +132,14 @@ func showLoading(show bool) {
 }
 
 func showModal(id, title, body string, cbk func(submit bool) bool, onRender func(btnOk, btnCancel, btnClose *gohl.Element)) {
-	overlay := W.GetRootElement().GetElementById(id)
+	root := W.GetRootElement()
+	if root == nil {
+		return
+	}
+	overlay := root.GetElementById(id)
+	if overlay == nil {
+		return
+	}
 	titleEl := overlay.GetElementByAttr("role", "modal-title")
 	bodyEl := overlay.GetElementByAttr("role", "modal-body")
 	btnCancelEl := overlay.GetElementByAttr("role", "modal-cancel")
