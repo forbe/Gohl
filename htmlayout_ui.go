@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -201,6 +200,7 @@ type WindowConfig struct {
 	Icon         uintptr // 窗口图标 (HICON)
 	Rounded      bool    // 圆角窗口
 	CornerRadius int     // 圆角半径，默认10
+	Handler      NotifyHandler
 }
 
 type U struct {
@@ -208,10 +208,6 @@ type U struct {
 	Action string      `json:"action"`
 	Value  interface{} `json:"value"`
 }
-
-type ElementHandler func(elem *Element) bool
-type ClickHandler func(elem *Element, params *BehaviorEventParams) bool
-type MouseHandler func(elem *Element, params *MouseParams) bool
 
 type Dispatcher struct {
 	mu    sync.Mutex
@@ -256,17 +252,16 @@ type Window struct {
 	timerHandler  *EventHandler
 	closing       bool
 	dispatcher    *Dispatcher
+	eventHandlers map[uint32]ElementHandler
 
-	OnMouseDown              MouseHandler
-	OnMouseUp                MouseHandler
-	OnClick                  ClickHandler
-	OnEditValueChanging      ElementHandler
-	OnEditValueChanged       ElementHandler
-	OnSelectSelectionChanged ElementHandler
-	OnButtonStateChanged     ElementHandler
-	OnMenuItemClick          ElementHandler
-	OnHyperlinkClick         ElementHandler
-	OnMinimize               func() bool
+	OnButtonClick        ElementHandler
+	OnMouse              MouseHandler
+	OnSelectionChanged   StringHandler
+	OnValueChange        StringHandler
+	OnVisibleChange      BoolHandler
+	OnButtonStateChanged BoolHandler
+	OnHyperlinkClick     ElementHandler
+	OnMinimize           func() bool
 }
 
 func NewWindow(config WindowConfig) *Window {
@@ -279,9 +274,14 @@ func NewWindow(config WindowConfig) *Window {
 	if config.Height == 0 {
 		config.Height = 300
 	}
-	return &Window{
+	gw := &Window{
 		config: config,
 	}
+	if config.Handler.Behaviors == nil {
+		config.Handler.Behaviors = map[string]*EventHandler{}
+	}
+	gw.SetNotifyHandler(&config.Handler)
+	return gw
 }
 
 func (w *Window) SetHtml(html string) *Window {
@@ -743,38 +743,49 @@ func (w *Window) hitTest(screenX, screenY int) int {
 	return HTCLIENT
 }
 
+func (w *Window) On(eventType uint32, handler ElementHandler) {
+	if w.eventHandlers == nil {
+		w.eventHandlers = make(map[uint32]ElementHandler)
+	}
+	w.eventHandlers[eventType] = handler
+}
+
+func (w *Window) Fire(eventType uint32) bool {
+	if w.eventHandlers == nil {
+		return true
+	}
+	if handler, ok := w.eventHandlers[eventType]; ok {
+		return handler(nil)
+	}
+	return true
+}
+
 func (w *Window) setupDefaultEventHandler() {
+
 	w.eventHandler = &EventHandler{
 		OnMouse: func(he HELEMENT, params *MouseParams) bool {
-			cmd := params.Cmd & 0xFF
-			target := NewElementFromHandle(params.Target)
-
-			switch cmd {
-			case MOUSE_DOWN:
-				if w.OnMouseDown != nil {
-					return w.OnMouseDown(target, params)
-				}
-			case MOUSE_UP:
-				if w.OnMouseUp != nil {
-					return w.OnMouseUp(target, params)
-				}
+			elem := NewElementFromHandle(params.Target)
+			if elem.OnMouse != nil {
+				return elem.OnMouse(elem, params)
+			}
+			if w.OnMouse != nil {
+				return w.OnMouse(elem, params)
 			}
 			return false
 		},
+
 		// true 表示事件已处理(已消费)，false 表示未处理(未消费)
 		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
 			elem := NewElementFromHandle(params.Target)
 
-			switch params.Cmd {
+			//跳过捕获阶段的事件，否则会触发2次
+			if params.Cmd&SINKING != 0 {
+				return false
+			}
+
+			switch params.Cmd & 0xFF {
 			case BUTTON_CLICK:
 				if _, hasMin := elem.Attr("-gohl-min"); hasMin {
-					// 检查是否有 OnMinimize 回调
-					if w.OnMinimize != nil {
-						// 如果 OnMinimize 返回 false，则不执行最小化
-						if !w.OnMinimize() {
-							return true
-						}
-					}
 					w.Minimize()
 					return true
 				}
@@ -791,59 +802,61 @@ func (w *Window) setupDefaultEventHandler() {
 					w.Close()
 					return true
 				}
-				//调用 elem.SetOnClick(fn)  传递进来的fn
-				if handler, ok := elem.eventHandlers["click"]; ok {
-					return handler.OnBehaviorEvent(elem.handle, nil)
-				} else {
-					//否则调用window的OnClick函数里面的绑定函数
-					if w.OnClick != nil {
-						w.OnClick(elem, params)
-						return true
-					}
+				if elem.OnClick != nil {
+					return elem.OnClick(elem)
 				}
-
-			case EDIT_VALUE_CHANGING:
-				if w.OnEditValueChanging != nil {
-					w.OnEditValueChanging(elem)
-					return false
-				}
-
-			case EDIT_VALUE_CHANGED:
-				if w.OnEditValueChanged != nil {
-					w.OnEditValueChanged(elem)
-					return false
-				}
-
-			case SELECT_SELECTION_CHANGED:
-				if w.OnSelectSelectionChanged != nil {
-					w.OnSelectSelectionChanged(elem)
-					return false
+				if w.OnButtonClick != nil {
+					return w.OnButtonClick(elem)
 				}
 
 			case BUTTON_STATE_CHANGED:
+				if elem.OnButtonStateChanged != nil {
+					return elem.OnButtonStateChanged(elem, elem.IsChecked())
+				}
 				if w.OnButtonStateChanged != nil {
-					w.OnButtonStateChanged(elem)
-					return false
+					return w.OnButtonStateChanged(elem, elem.IsChecked())
 				}
 
-			case MENU_ITEM_CLICK:
-				if w.OnMenuItemClick != nil {
-					w.OnMenuItemClick(elem)
-					return true
+			case VISIUAL_STATUS_CHANGED:
+				if elem.OnVisibleChange != nil {
+					return elem.OnVisibleChange(elem, elem.IsVisible())
+				}
+				if w.OnVisibleChange != nil {
+					return w.OnVisibleChange(elem, elem.IsVisible())
+				}
+
+			case SELECT_SELECTION_CHANGED:
+				if elem.OnSelectionChanged != nil {
+					value, _ := elem.GetValue()
+					return elem.OnSelectionChanged(elem, value)
+				}
+				if w.OnSelectionChanged != nil {
+					value, _ := elem.GetValue()
+					return w.OnSelectionChanged(elem, value)
+				}
+
+			case EDIT_VALUE_CHANGED:
+				tagName := elem.Type()
+				if tagName != "input" && tagName != "textarea" {
+					return false
+				}
+				if elem.OnValueChange != nil {
+					return elem.OnValueChange(elem, elem.Text())
+				}
+				if w.OnValueChange != nil {
+					return w.OnValueChange(elem, elem.Text())
 				}
 
 			case HYPERLINK_CLICK:
+				if elem.OnHyperlinkClick != nil {
+					return elem.OnHyperlinkClick(elem)
+				}
 				if w.OnHyperlinkClick != nil {
-					href, ok := elem.Attr("@href")
-					if !ok {
-						return w.OnHyperlinkClick(elem)
-					}
-					log.Println("点击了超链接: " + href)
-					exec.Command("cmd", "/c", "start", href).Start()
-					return true
+					return w.OnHyperlinkClick(elem)
 				}
 			}
 			return false
+			// return invoke(elem, params.Cmd)
 		},
 		OnTimer: func(he HELEMENT, params *TimerParams) bool {
 			timerId := int(params.TimerId)
@@ -1014,7 +1027,7 @@ func (w *Window) SetTimer(milliseconds uint, callback func()) int {
 		}
 	}
 	//必须在SetTimer之前调用AttachHandler,才可以正常触发事件
-	root.AttachHandler(w.timerHandler)
+	root.AttachHandler(w.timerHandler, HANDLE_TIMER)
 	root.SetTimer(milliseconds, uintptr(timerId))
 	log.Printf("[SetTimer] timerId=%d, ms=%d", timerId, milliseconds)
 	return timerId
@@ -1030,6 +1043,11 @@ func (w *Window) KillTimer(timerId int) {
 
 // 窗口控制方法
 func (w *Window) Minimize() {
+	if w.OnMinimize != nil {
+		if !w.OnMinimize() {
+			return
+		}
+	}
 	procShowWindow.Call(uintptr(w.hwnd), 6) // SW_MINIMIZE
 }
 

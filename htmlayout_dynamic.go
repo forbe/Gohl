@@ -12,6 +12,30 @@ var (
 	htmlayoutLib *syscall.DLL
 )
 
+const (
+	T_UNDEFINED  = 0
+	T_NULL       = 1
+	T_BOOL       = 2
+	T_INT        = 3
+	T_FLOAT      = 4
+	T_STRING     = 5
+	T_DATE       = 6
+	T_CURRENCY   = 7
+	T_LENGTH     = 8
+	T_ARRAY      = 9
+	T_MAP        = 10
+	T_FUNCTION   = 11
+	T_BYTES      = 12
+	T_OBJECT     = 13
+	T_DOM_OBJECT = 14
+)
+
+type VALUE struct {
+	T uint32
+	U uint32
+	D uint64
+}
+
 func init() {
 	// 初始化资源目录
 	extractResources()
@@ -105,6 +129,15 @@ var (
 	procHTMLayoutGetElementLocation       *syscall.Proc
 	procHTMLayout_UseElement              *syscall.Proc
 	procHTMLayout_UnuseElement            *syscall.Proc
+	procHTMLayoutIsElementVisible         *syscall.Proc
+	procHTMLayoutControlGetValue          *syscall.Proc
+	procHTMLayoutControlSetValue          *syscall.Proc
+	procValueInit                         *syscall.Proc
+	procValueClear                        *syscall.Proc
+	procValueStringData                   *syscall.Proc
+	procValueStringDataSet                *syscall.Proc
+	procValueIntData                      *syscall.Proc
+	procValueIntDataSet                   *syscall.Proc
 )
 
 func initHtmlayoutFunctions() {
@@ -172,6 +205,15 @@ func initHtmlayoutFunctions() {
 	procHTMLayoutGetElementLocation = mustFindProc("HTMLayoutGetElementLocation")
 	procHTMLayout_UseElement = mustFindProc("HTMLayout_UseElement")
 	procHTMLayout_UnuseElement = mustFindProc("HTMLayout_UnuseElement")
+	procHTMLayoutIsElementVisible = mustFindProc("HTMLayoutIsElementVisible")
+	procHTMLayoutControlGetValue = mustFindProc("HTMLayoutControlGetValue")
+	procHTMLayoutControlSetValue = mustFindProc("HTMLayoutControlSetValue")
+	procValueInit = mustFindProc("ValueInit")
+	procValueClear = mustFindProc("ValueClear")
+	procValueStringData = mustFindProc("ValueStringData")
+	procValueStringDataSet = mustFindProc("ValueStringDataSet")
+	procValueIntData = mustFindProc("ValueIntData")
+	procValueIntDataSet = mustFindProc("ValueIntDataSet")
 }
 
 func mustFindProc(name string) *syscall.Proc {
@@ -669,5 +711,144 @@ func HTMLayout_UnuseElement(handle uintptr) int {
 		return -1
 	}
 	ret, _, _ := procHTMLayout_UnuseElement.Call(handle)
+	return int(ret)
+}
+
+func HTMLayout_IsVisible(handle uintptr) bool {
+	if procHTMLayoutIsElementVisible == nil {
+		return false
+	}
+	var visible int32
+	ret, _, _ := procHTMLayoutIsElementVisible.Call(handle, uintptr(unsafe.Pointer(&visible)))
+	if ret != HLDOM_OK {
+		return false
+	}
+	return int(visible) != 0
+}
+
+func ValueInit(v *VALUE) int {
+	if procValueInit == nil {
+		return -1
+	}
+	ret, _, _ := procValueInit.Call(uintptr(unsafe.Pointer(v)))
+	return int(ret)
+}
+
+func ValueClear(v *VALUE) int {
+	if procValueClear == nil {
+		return -1
+	}
+	ret, _, _ := procValueClear.Call(uintptr(unsafe.Pointer(v)))
+	return int(ret)
+}
+
+func ValueStringData(v *VALUE) (string, int) {
+	if procValueStringData == nil {
+		return "", -1
+	}
+	var chars *uint16
+	var length uint32
+	ret, _, _ := procValueStringData.Call(
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&chars)),
+		uintptr(unsafe.Pointer(&length)),
+	)
+	if ret != 0 || chars == nil {
+		return "", int(ret)
+	}
+	return utf16ToStringLength(chars, int(length)), 0
+}
+
+func ValueStringDataSet(v *VALUE, s string) int {
+	if procValueStringDataSet == nil {
+		return -1
+	}
+	var chars []uint16
+	for _, r := range s {
+		chars = append(chars, uint16(r))
+	}
+	if len(chars) == 0 {
+		chars = []uint16{0}
+	}
+	ret, _, _ := procValueStringDataSet.Call(
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&chars[0])),
+		uintptr(len(chars)),
+		0,
+	)
+	return int(ret)
+}
+
+func ValueIntData(v *VALUE) (int, int) {
+	if procValueIntData == nil {
+		return 0, -1
+	}
+	var data int32
+	ret, _, _ := procValueIntData.Call(
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&data)),
+	)
+	return int(data), int(ret)
+}
+
+func ValueIntDataSet(v *VALUE, data int, valType uint32) int {
+	if procValueIntDataSet == nil {
+		return -1
+	}
+	ret, _, _ := procValueIntDataSet.Call(
+		uintptr(unsafe.Pointer(v)),
+		uintptr(data),
+		uintptr(valType),
+		0,
+	)
+	return int(ret)
+}
+
+func HTMLayout_GetValue(handle uintptr) (string, int) {
+	if procHTMLayoutControlGetValue == nil {
+		return "", -1
+	}
+	var v VALUE
+	ValueInit(&v)
+	defer ValueClear(&v)
+
+	ret, _, _ := procHTMLayoutControlGetValue.Call(handle, uintptr(unsafe.Pointer(&v)))
+	if ret != HLDOM_OK {
+		return "", int(ret)
+	}
+
+	if v.T == T_STRING {
+		return ValueStringData(&v)
+	}
+	if v.T == T_INT || v.T == T_BOOL {
+		val, _ := ValueIntData(&v)
+		return fmt.Sprintf("%d", val), 0
+	}
+	return "", 0
+}
+
+func HTMLayout_SetValue(handle uintptr, value string) int {
+	if procHTMLayoutControlSetValue == nil {
+		return -1
+	}
+	var v VALUE
+	ValueInit(&v)
+	defer ValueClear(&v)
+
+	ValueStringDataSet(&v, value)
+	ret, _, _ := procHTMLayoutControlSetValue.Call(handle, uintptr(unsafe.Pointer(&v)))
+	return int(ret)
+}
+
+func HTMLayout_SetValueInt(handle uintptr, value int) int {
+	if procHTMLayoutControlSetValue == nil {
+		return -1
+	}
+	var v VALUE
+	ValueInit(&v)
+	defer ValueClear(&v)
+
+	ValueIntDataSet(&v, value, T_INT)
+	ret, _, _ := procHTMLayoutControlSetValue.Call(handle, uintptr(unsafe.Pointer(&v)))
 	return int(ret)
 }

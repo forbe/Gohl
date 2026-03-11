@@ -36,7 +36,7 @@ type EventHandler struct {
 	handle          cgo.Handle
 }
 
-func (e *EventHandler) Subscription() uint32 {
+func (e *EventHandler) AllSubscription() uint32 {
 	var subscription uint32 = 0
 	add := func(f interface{}, flag uint32) {
 		if f != nil {
@@ -435,7 +435,7 @@ var goNotifyProc = syscall.NewCallback(func(msg uint32, wparam uintptr, lparam u
 				tag := cgo.NewHandle(behavior)
 				params.ElementProc = uintptr(goElementProc)
 				params.ElementTag = uintptr(tag)
-				params.ElementEvents = behavior.Subscription()
+				params.ElementEvents = behavior.AllSubscription()
 				return 1
 			}
 		}
@@ -451,7 +451,7 @@ var goNotifyProc = syscall.NewCallback(func(msg uint32, wparam uintptr, lparam u
 			tag := cgo.NewHandle(behavior)
 			params.ElementProc = uintptr(goElementProc)
 			params.ElementTag = uintptr(tag)
-			params.ElementEvents = behavior.Subscription()
+			params.ElementEvents = behavior.AllSubscription()
 			return 1
 		}
 
@@ -541,7 +541,7 @@ func AttachWindowEventHandler(hwnd uint32, handler *EventHandler) {
 	windowEventHandlers[hwnd] = handler
 	windowEventHandles[hwnd] = handle
 
-	subscription := handler.Subscription()
+	subscription := handler.AllSubscription()
 	subscription &= ^uint32(DISABLE_INITIALIZATION & 0xffffffff)
 
 	ret := HTMLayoutWindowAttachEventHandler(key, uintptr(goElementProc), tag, subscription)

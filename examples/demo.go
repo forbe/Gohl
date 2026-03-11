@@ -6,8 +6,13 @@ import (
 	"embed"
 	"io"
 	"log"
+	"math/rand"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/forbe/gohl"
 )
@@ -20,8 +25,7 @@ var (
 	embedOnce   sync.Once
 )
 
-var gw *gohl.Window
-var tray *gohl.TrayIcon
+var W *gohl.Window
 
 const WM_TRAYMSG = 0x0400 + 1
 
@@ -29,8 +33,8 @@ func main() {
 	initEmbedZip()
 	gohl.RegisterResourceLoader("embed", embedLoader)
 
-	gw = gohl.NewWindow(gohl.WindowConfig{
-		Title:        "Behaviors Demo",
+	W = gohl.NewWindow(gohl.WindowConfig{
+		Title:        "联机助手",
 		Width:        360,
 		Height:       480,
 		Frameless:    true,
@@ -40,177 +44,176 @@ func main() {
 		CornerRadius: 10,
 		Icon:         gohl.LoadIconFromResource(2),
 		Center:       true,
+		Handler: gohl.NotifyHandler{
+			OnDocumentComplete: func() uintptr {
+				log.Printf("OnDocumentComplete: %v", W.GetHwnd())
+				//弹窗
+				W.GetElementById("demo-btn").OnClick = func(elem *gohl.Element) bool {
+					showModal("default-modal", "提示", "你好，欢迎来到中国!", func(submit bool) bool {
+						return true
+					}, nil)
+					return true
+				}
+
+				//弹窗
+				W.GetElementById("demo-btn2").OnClick = func(elem *gohl.Element) bool {
+					W.UpdateUI(gohl.U{
+						ID:     "demo-img",
+						Action: "attr",
+						Value:  map[string]interface{}{"src": "http://bd.kuaishoua.com/787b568727c8f5ce.png"},
+					}, gohl.U{
+						ID:     "demo-tips",
+						Action: "text",
+						Value:  "你好，欢迎来到中国!",
+					})
+
+					showNotification("已更新UI", 2*time.Second)
+					return true
+				}
+
+				return W.GetHwnd()
+			},
+		},
 	})
 
-	store, _ := gohl.NewStorage("GameOnline")
-	tray = gohl.NewTrayIcon(gohl.TrayConfig{
-		Icon: gw.GetIcon(),
-		Tip:  "Behaviors Demo",
-	})
+	//窗体最小化之前调用，返回false不最小化
+	W.OnMinimize = func() bool {
+		log.Println("最小化窗口")
+		return true
+	}
 
-	gw.SetNotifyHandler(&gohl.NotifyHandler{
-		Behaviors: map[string]*gohl.EventHandler{},
-	})
-
-	gw.OnClick = func(elem *gohl.Element) bool {
+	//点击按钮触发
+	W.OnButtonClick = func(elem *gohl.Element) bool {
 		role, _ := elem.Attr("role")
 		id, _ := elem.Attr("id")
 		switch role {
 		case "show-modal":
-			if id == "btn-create" {
-				// showLoading(true)
-				alert("请先创建游戏")
-				return true
-			}
-			if id == "btn-join" {
-				html := `
-					<div id="join-code-container">
-						<input id="join-code" type="text" /><br />
-					</div>
-				`
-				lastCode, ok := store.GetString("last-code")
-				if ok {
-					html = `
-						<div id="join-code-container">
-							<input id="join-code" type="text" /><br />
-							✧ &nbsp;<a href="#" id="join-code-history">` + lastCode + `</a>
-						</div>
-					`
-				}
-				showModal("modal01", "请输入联机码", html)
-				return true
-			}
-			showModal("modal01", "示例对话框", "这是一个模态对话框示例。\n点击确定或取消关闭对话框。")
-		case "show-confirm":
-			showModal("modal01", "确认操作", "您确定要执行此操作吗？")
-		case "show-alert":
-			showModal("modal01", "警告", "这是一个警告消息！\n请注意风险。")
-		case "modal-close", "modal-cancel":
-			hideModal(elem)
-			if role == "modal-cancel" {
-				showNotification("已取消操作")
-			}
-		case "modal-ok":
-			joinCode := gw.GetRootElement().GetElementById("join-code")
-			if joinCode != nil {
-				code := joinCode.Text()
-				if len(code) < 6 {
-					showNotification("不正确的联机码")
+			if id == "show-modal" {
+				html := `<div id="join-code-container"><input id="join-code" type="text" /><br /></div>`
+				showModal("default-modal", "请输入联机码", html, func(submit bool) bool {
 					return true
-				}
-				store.Set("last-code", code)
-			}
-			hideModal(elem)
-			showNotification("操作已确认")
-
-		case "setting-menu":
-			showModal("modal-setting", "设置", "")
-		case "close-btn":
-			if tray.IsAdded() {
-				tray.Remove()
+				}, nil)
+				return true
 			}
 		}
-		return false
+		return true
 	}
 
-	gw.OnMinimize = func() bool {
-		if !tray.IsAdded() {
-			tray.Add(gw.GetHwnd(), WM_TRAYMSG)
-			tray.ShowInfo("应用已最小化", "点击托盘图标恢复窗口")
+	W.OnButtonStateChanged = func(elem *gohl.Element, checked bool) bool {
+		log.Printf("OnButtonStateChanged: %v, %v", elem, checked)
+		return true
+	}
+
+	W.OnHyperlinkClick = func(elem *gohl.Element) bool {
+		href, ok := elem.Attr("@href")
+		if ok {
+			log.Println("点击了超链接: " + href)
+			exec.Command("cmd", "/c", "start", href).Start()
 		}
-		gw.Hide()
-		return false
+		return true
 	}
 
-	gw.OnHyperlinkClick = func(elem *gohl.Element) bool {
-		id, _ := elem.Attr("id")
-		switch id {
-		case "join-code-history":
-			joinCode := gw.GetRootElement().GetElementById("join-code")
-			if joinCode != nil {
-				joinCode.SetText(elem.Text())
-			}
-		case "link2":
-			showNotification("点击了: 链接 2 - 查看文档")
-		case "link3":
-			showNotification("点击了: 链接 3 - 联系我们")
-		default:
-			showNotification("点击了超链接")
-		}
-		return false
+	if FileExists("app.html") {
+		W.LoadFile("app.html").Run()
+	} else {
+		html := loadEmbedRes("embed://app.html")
+		W.SetHtml(html).Run()
 	}
-
-	gw.LoadFile("demo2.html").Run()
 }
 
 func showLoading(show bool) {
-	gw.UpdateUI(gohl.U{
-		ID:     "loading",
-		Action: "show",
-		Value:  show,
-	})
+	W.UpdateUI(gohl.U{ID: "loading", Action: "show", Value: show})
 }
 
-func alert(msg string) {
-	showModal("modal01", "警告", msg)
-}
-
-func showModal(id, title, body string) {
-	gw.Dispatch(func() {
-		overlay := gw.GetRootElement().GetElementById(id)
-
-		titleEl := overlay.GetElementByAttr("role", "modal-title")
-		bodyEl := overlay.GetElementByAttr("role", "modal-body")
-
-		if titleEl != nil {
-			titleEl.SetText(title)
-		}
-		if bodyEl != nil {
-			if body != "" {
-				bodyEl.SetHtml(body)
-			}
-		}
-		if overlay != nil {
-			overlay.Show()
-		}
-
-		log.Println("[Modal] Shown:", title)
-	})
-}
-
-func hideModal(elem *gohl.Element) {
-	gw.Dispatch(func() {
-		overlay := elem.FindParentByAttr("role", "modal-overlay")
-		if overlay != nil {
-			overlay.Hide()
-			return
-		}
-		log.Println("弹窗cover图层请设置 role='modal-overlay' 否则无法关闭!")
-	})
-}
-
-func showNotification(text string) {
-	notification := gw.GetRootElement().GetElementById("notification")
-	textEl := gw.GetRootElement().GetElementById("notification-text")
-
-	if notification != nil && textEl != nil {
-		textEl.SetText(text)
-		notification.Show()
-
-		gw.SetTimer(2000, func() {
-			log.Println("[Notification] Hidden after 2 seconds")
-			hideNotification()
-		})
+func showModal(id, title, body string, cbk func(submit bool) bool, onRender func(btnOk, btnCancel, btnClose *gohl.Element)) {
+	overlay := W.GetRootElement().GetElementById(id)
+	titleEl := overlay.GetElementByAttr("role", "modal-title")
+	bodyEl := overlay.GetElementByAttr("role", "modal-body")
+	btnCancelEl := overlay.GetElementByAttr("role", "modal-cancel")
+	btnOkEl := overlay.GetElementByAttr("role", "modal-ok")
+	btnCloseEl := overlay.GetElementByAttr("role", "modal-close")
+	if btnOkEl != nil {
+		btnOkEl.Show()
+	}
+	if btnCancelEl != nil {
+		btnCancelEl.Show()
+	}
+	if btnCloseEl != nil {
+		btnCloseEl.Show()
 	}
 
-	log.Println("[Notification]", text)
+	if titleEl != nil {
+		titleEl.SetText(title)
+	}
+	if bodyEl != nil {
+		if body != "" {
+			bodyEl.SetHtml(body)
+		}
+	}
+	if overlay != nil {
+		overlay.Show()
+	}
+
+	if onRender != nil {
+		if btnOkEl != nil && btnCancelEl != nil && btnCloseEl != nil {
+			onRender(btnOkEl, btnCancelEl, btnCloseEl)
+		}
+	}
+
+	if btnCloseEl != nil {
+		btnCloseEl.OnClick = func(elem *gohl.Element) bool {
+			if cbk != nil {
+				cbk(false)
+			}
+			overlay.Hide()
+			return true
+		}
+	}
+	if btnCancelEl != nil {
+		btnCancelEl.OnClick = func(elem *gohl.Element) bool {
+			if cbk != nil {
+				cbk(false)
+			}
+			overlay.Hide()
+			return true
+		}
+	}
+	if btnOkEl != nil {
+		btnOkEl.OnClick = func(elem *gohl.Element) bool {
+			if cbk != nil {
+				if cbk(true) {
+					overlay.Hide()
+				}
+			}
+			return true
+		}
+	}
+}
+
+func showNotification(text string, dismissTime time.Duration) {
+	W.UpdateUI(
+		gohl.U{
+			ID:     "notification",
+			Action: "show",
+			Value:  true,
+		},
+		gohl.U{
+			ID:     "notification-text",
+			Action: "text",
+			Value:  text,
+		},
+	)
+	time.AfterFunc(dismissTime, func() {
+		hideNotification()
+	})
 }
 
 func hideNotification() {
-	notification := gw.GetRootElement().GetElementById("notification")
-	if notification != nil {
-		notification.Hide()
-	}
+	W.UpdateUI(gohl.U{
+		ID:     "notification",
+		Action: "show",
+		Value:  false,
+	})
 }
 
 func initEmbedZip() {
@@ -229,31 +232,75 @@ func initEmbedZip() {
 	})
 }
 
-// 从embed.zip加载资源
-func embedLoader(uri string) ([]byte, uint32, bool) {
-	if embedReader == nil {
-		return nil, 0, false
-	}
+func loadEmbedRes(uri string) string {
+	uri = strings.TrimPrefix(uri, "embed://")
+	uri = strings.TrimSuffix(uri, "/")
 
-	filename := uri[8:]
-	filename = strings.TrimSuffix(filename, "/")
+	if embedReader == nil {
+		return ""
+	}
 
 	for _, file := range embedReader.File {
-		if file.Name == filename {
+		if file.Name == uri {
 			rc, err := file.Open()
 			if err != nil {
-				return nil, 0, false
+				return ""
 			}
 			defer rc.Close()
-
 			data, err := io.ReadAll(rc)
 			if err != nil {
-				return nil, 0, false
+				return ""
 			}
-
-			return data, gohl.GetResourceDataType(filename), true
+			return string(data)
 		}
 	}
+	return ""
+}
 
-	return nil, 0, false
+func embedLoader(uri string) ([]byte, uint32, bool) {
+	data := loadEmbedRes(uri)
+	if data == "" {
+		return nil, 0, false
+	}
+	filename := strings.TrimPrefix(uri, "embed://")
+	return []byte(data), gohl.GetResourceDataType(filename), true
+}
+
+func alert(msg string) {
+	showModal("default-modal", "提示", msg, func(submmit bool) bool {
+		return true
+	}, func(btnOk, btnCancel, btnClose *gohl.Element) {
+		btnOk.Show()
+		btnCancel.Hide()
+		btnClose.Show()
+	})
+}
+
+func showNewWindow(uri string, width, height int) {
+	w := gohl.NewWindow(gohl.WindowConfig{
+		Title:        "联机助手",
+		Width:        width,
+		Height:       height,
+		Resize:       false,
+		Border:       true,
+		Frameless:    false,
+		Rounded:      true,
+		CornerRadius: 10,
+		ClassName:    "HTMLayoutWindow" + strconv.Itoa(rand.Intn(1000000)),
+		Icon:         gohl.LoadIconFromResource(2),
+		Center:       true,
+	})
+	w.SetHtml(loadEmbedRes(uri)).Run()
+}
+
+func FileExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return os.IsExist(err)
+	}
+	return !info.IsDir()
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
 }

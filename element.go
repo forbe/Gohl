@@ -3,12 +3,14 @@ package gohl
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"runtime"
 	"runtime/cgo"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
@@ -34,6 +36,10 @@ var valueErrorToString = map[VALUE_RESULT]string{
 }
 
 var whitespaceSplitter = regexp.MustCompile(`(\S+)`)
+
+// Element 缓存，确保同一 HELEMENT 对应同一实例
+var elementCache = make(map[HELEMENT]*Element)
+var elementCacheMu sync.RWMutex
 
 // dom error code
 type DomError struct {
@@ -134,9 +140,26 @@ func unuse(handle HELEMENT) {
 	}
 }
 
+type ElementHandler func(elem *Element) bool
+type MouseHandler func(elem *Element, params *MouseParams) bool
+type BoolHandler func(elem *Element, value bool) bool
+type StringHandler func(elem *Element, value string) bool
+
 type Element struct {
-	handle        HELEMENT
-	eventHandlers map[string]*EventHandler
+	handle               HELEMENT
+	eventHandlers        map[uint32]ElementHandler
+	OnClick              ElementHandler
+	OnMouse              MouseHandler
+	OnCheck              BoolHandler
+	OnSelectionChanged   StringHandler
+	OnValueChange        StringHandler
+	OnVisibleChange      BoolHandler
+	OnButtonStateChanged BoolHandler
+	OnHyperlinkClick     ElementHandler
+
+	// OnMouseDown   func(elem *Element) bool
+	// OnMouseUp     func(elem *Element) bool
+	// OnMouseMove   func(elem *Element) bool
 }
 
 // Constructors
@@ -144,9 +167,31 @@ func NewElementFromHandle(h HELEMENT) *Element {
 	if h == BAD_HELEMENT {
 		return nil
 	}
-	e := &Element{BAD_HELEMENT, nil}
-	e.setHandle(h)
+
+	// 先从缓存查找
+	elementCacheMu.RLock()
+	if e, ok := elementCache[h]; ok {
+		elementCacheMu.RUnlock()
+		return e
+	}
+	elementCacheMu.RUnlock()
+
+	// 缓存中没有，创建新实例
+	elementCacheMu.Lock()
+	defer elementCacheMu.Unlock()
+
+	// 双重检查
+	if e, ok := elementCache[h]; ok {
+		return e
+	}
+
+	e := &Element{
+		handle:        h,
+		eventHandlers: make(map[uint32]ElementHandler),
+	}
+	use(h)
 	runtime.SetFinalizer(e, (*Element).finalize)
+	elementCache[h] = e
 	return e
 }
 
@@ -191,7 +236,13 @@ func FocusedElement(hwnd uint32) *Element {
 }
 
 func (e *Element) finalize() {
-	e.handle = BAD_HELEMENT
+	if e.handle != BAD_HELEMENT {
+		elementCacheMu.Lock()
+		delete(elementCache, e.handle)
+		elementCacheMu.Unlock()
+		HTMLayout_UnuseElement(uintptr(e.handle))
+		e.handle = BAD_HELEMENT
+	}
 }
 
 func (e *Element) Release() {
@@ -214,7 +265,7 @@ func (e *Element) Equals(other *Element) bool {
 
 func (e *Element) attachBehavior(handler *EventHandler) {
 	tag := cgo.NewHandle(handler)
-	if subscription := handler.Subscription(); subscription == HANDLE_ALL {
+	if subscription := handler.AllSubscription(); subscription == HANDLE_ALL {
 		if ret := HTMLayoutAttachEventHandler(uintptr(e.handle), uintptr(unsafe.Pointer(goElementProc)), uintptr(tag)); ret != HLDOM_OK {
 			tag.Delete()
 			domPanic(ret, "Failed to attach event handler to element")
@@ -227,9 +278,11 @@ func (e *Element) attachBehavior(handler *EventHandler) {
 	}
 }
 
-func (e *Element) AttachHandler(handler *EventHandler) {
-	subscription := handler.Subscription()
-	subscription &= ^uint32(DISABLE_INITIALIZATION & 0xffffffff)
+func (e *Element) AttachHandler(handler *EventHandler, subscription uint32) {
+	if subscription == 0 {
+		subscription = handler.AllSubscription()
+		subscription &= ^uint32(DISABLE_INITIALIZATION & 0xffffffff)
+	}
 
 	tag := cgo.NewHandle(handler)
 	//将tag保存起来
@@ -267,30 +320,16 @@ func (e *Element) DetachHandler(handler *EventHandler) {
 	handler.handle = 0
 }
 
-func (e *Element) SetOnClick(f func(owner *Element, params *BehaviorEventParams) bool) *EventHandler {
+func (e *Element) On(eventType uint32, handler ElementHandler) {
 	if e.eventHandlers == nil {
-		e.eventHandlers = make(map[string]*EventHandler)
+		e.eventHandlers = make(map[uint32]ElementHandler)
 	}
-	// 1. 如果之前已经设置过，先移除它
-	e.RemoveOnClick(e.eventHandlers["click"])
-	handler := &EventHandler{
-		OnBehaviorEvent: func(he HELEMENT, params *BehaviorEventParams) bool {
-			// 将 HELEMENT 转换为 *Element
-			elem := &Element{handle: he}
-			return f(elem, params)
-		},
-	}
-	e.AttachHandler(handler)
-	e.eventHandlers["click"] = handler
-	return handler
+	log.Println("element.On", eventType, handler)
+	e.eventHandlers[eventType] = handler
 }
 
-// RemoveOnClick 只需要传入之前返回的 handler
-func (e *Element) RemoveOnClick(handler *EventHandler) {
-	if handler == nil || handler.handle == 0 {
-		return
-	}
-	e.DetachHandler(handler)
+func (e *Element) Un(eventType uint32) {
+	delete(e.eventHandlers, eventType)
 }
 
 type ElementEventHandler func(elem *Element, params *BehaviorEventParams) bool
@@ -302,7 +341,7 @@ func (e *Element) Bind(eventType string, handler ElementEventHandler) {
 			return handler(elem, params)
 		},
 	}
-	e.AttachHandler(eventHandler)
+	e.AttachHandler(eventHandler, 0)
 }
 
 func (e *Element) Update(restyle, restyleDeep, remeasure, remeasureDeep, render bool) {
@@ -458,6 +497,18 @@ func (e *Element) Hide() *Element {
 	e.SetStyle("display", "none")
 	e.Update(true, false, true, false, true)
 	return e
+}
+
+func (e *Element) IsVisible() bool {
+	return HTMLayout_IsVisible(uintptr(e.handle))
+}
+
+func (e *Element) IsValid() bool {
+	return e.handle != 0
+}
+
+func (e *Element) IsChecked() bool {
+	return e.State(STATE_CHECKED)
 }
 
 func (e *Element) Select(selector string) []*Element {
@@ -806,6 +857,18 @@ func (e *Element) Text() string {
 	return string(s)
 }
 
+func (e *Element) GetValue() (string, int) {
+	return HTMLayout_GetValue(uintptr(e.handle))
+}
+
+func (e *Element) SetValue(value string) int {
+	return HTMLayout_SetValue(uintptr(e.handle), value)
+}
+
+func (e *Element) SetValueInt(value int) int {
+	return HTMLayout_SetValueInt(uintptr(e.handle), value)
+}
+
 //
 // HTML attribute accessors/modifiers:
 //
@@ -1080,26 +1143,26 @@ func (e *Element) ValueAsString() (string, error) {
 	return utf16ToStringLength(args.Text, int(args.Length)), nil
 }
 
-func (e *Element) SetValue(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		args := &textValueParams{
-			MethodId: SET_TEXT_VALUE,
-			Text:     stringToUtf16Ptr(v),
-			Length:   uint32(len(v)),
-		}
-		argsPtr := uintptr(unsafe.Pointer(args))
-		ret := HTMLayoutCallBehaviorMethod(uintptr(e.handle), &argsPtr)
-		if ret == HLDOM_OK_NOT_HANDLED {
-			return errors.New("HLDOM_OK_NOT_HANDLED: This type of element does not accept data in this way")
-		} else if ret != HLDOM_OK {
-			return errors.New("Could not set text value")
-		}
-		return nil
-	default:
-		return errors.New("Don't know how to set values of this type")
-	}
-}
+// func (e *Element) SetValue(value interface{}) error {
+// 	switch v := value.(type) {
+// 	case string:
+// 		args := &textValueParams{
+// 			MethodId: SET_TEXT_VALUE,
+// 			Text:     stringToUtf16Ptr(v),
+// 			Length:   uint32(len(v)),
+// 		}
+// 		argsPtr := uintptr(unsafe.Pointer(args))
+// 		ret := HTMLayoutCallBehaviorMethod(uintptr(e.handle), &argsPtr)
+// 		if ret == HLDOM_OK_NOT_HANDLED {
+// 			return errors.New("HLDOM_OK_NOT_HANDLED: This type of element does not accept data in this way")
+// 		} else if ret != HLDOM_OK {
+// 			return errors.New("Could not set text value")
+// 		}
+// 		return nil
+// 	default:
+// 		return errors.New("Don't know how to set values of this type")
+// 	}
+// }
 
 func (e *Element) Describe() string {
 	s := e.Type()
