@@ -226,7 +226,7 @@ func mustFindProc(name string) *syscall.Proc {
 	return proc
 }
 
-func HTMLayoutProcND(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr, handled *bool) int {
+func HTMLayoutProcND(hwnd uintptr, msg uint32, wparam uintptr, lparam uintptr, handled *int32) int {
 	if procHTMLayoutProcND == nil {
 		return 0
 	}

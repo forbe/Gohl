@@ -479,11 +479,10 @@ var goElementComparator = syscall.NewCallback(func(he1 unsafe.Pointer, he2 unsaf
 	return cmp(NewElementFromHandle(HELEMENT(he1)), NewElementFromHandle(HELEMENT(he2)))
 })
 
-// Main htmlayout wndproc
 func ProcNoDefault(hwnd, msg uint32, wparam, lparam uintptr) (uintptr, bool) {
-	var handled bool = false
+	var handled int32 = 0
 	result := HTMLayoutProcND(uintptr(hwnd), msg, wparam, lparam, &handled)
-	return uintptr(result), handled
+	return uintptr(result), handled != 0
 }
 
 // Load html contents into window
