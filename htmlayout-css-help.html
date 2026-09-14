@@ -1,0 +1,721 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>HTMLayout CSS 参考手册</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e0e0e8;
+    line-height: 1.7;
+    font-size: 14px;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2em; color: #818cf8; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 8px; }
+.subtitle { color: #6b7280; margin-bottom: 32px; font-size: 0.9em; }
+h2 { font-size: 1.5em; color: #a5b4fc; margin-top: 40px; margin-bottom: 12px; padding-left: 12px; border-left: 4px solid #6366f1; }
+h3 { font-size: 1.15em; color: #c7d2fe; margin-top: 24px; margin-bottom: 8px; }
+h4 { font-size: 1em; color: #e0e0e8; margin-top: 16px; margin-bottom: 6px; }
+p { margin-bottom: 10px; color: #b0b0c0; }
+ul, ol { margin-left: 24px; margin-bottom: 12px; color: #b0b0c0; }
+li { margin-bottom: 4px; }
+code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    background: #1a1d27;
+    color: #4ecdc4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.88em;
+}
+pre {
+    background: #161823;
+    border: 1px solid #2a2e42;
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin-bottom: 14px;
+    font-size: 0.85em;
+    line-height: 1.5;
+}
+pre code { background: none; color: #e0e0e8; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 0.9em; }
+th { background: #1a1d27; color: #818cf8; padding: 10px 12px; text-align: left; border-bottom: 2px solid #312e81; font-weight: bold; }
+td { padding: 8px 12px; border-bottom: 1px solid #1e2130; color: #b0b0c0; }
+tr:hover td { background: #161823; }
+.note { background: #1a1a2e; border-left: 4px solid #fbbf24; padding: 12px 16px; margin-bottom: 14px; border-radius: 0 6px 6px 0; }
+.note code { color: #fbbf24; }
+.warn { background: #1a1010; border-left: 4px solid #f87171; padding: 12px 16px; margin-bottom: 14px; border-radius: 0 6px 6px 0; }
+.warn code { color: #f87171; }
+.tip { background: #051a10; border-left: 4px solid #4ade80; padding: 12px 16px; margin-bottom: 14px; border-radius: 0 6px 6px 0; }
+.tip code { color: #4ade80; }
+.toc { background: #161823; border: 1px solid #2a2e42; border-radius: 8px; padding: 20px 24px; margin-bottom: 32px; }
+.toc h3 { margin-top: 0; color: #818cf8; }
+.toc ul { list-style: none; margin-left: 0; }
+.toc ul li { margin-bottom: 6px; }
+.toc a { color: #6b7280; text-decoration: none; }
+.toc a:hover { color: #a5b4fc; }
+.toc .sub { margin-left: 20px; font-size: 0.9em; }
+.section { margin-bottom: 24px; }
+.tag { display: inline-block; background: #312e81; color: #c7d2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 6px; }
+.tag.css3 { background: #052e1a; color: #4ade80; }
+.tag.ext { background: #3a2020; color: #f87171; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>HTMLayout CSS 参考手册</h1>
+<p class="subtitle">基于 HTMLayout 引擎文档、gohl 示例代码及实际开发经验整理。HTMLayout 以 CSS 2.1 为基准，扩展了部分 CSS3 和独有特性。</p>
+
+<div class="toc">
+<h3>目录</h3>
+<ul>
+<li><a href="#overview">1. 概述</a></li>
+<li><a href="#selectors">2. 扩展选择符</a></li>
+<li><a href="#units">3. 单位系统</a></li>
+<li><a href="#layout">4. 布局属性</a></li>
+<li><a href="#text">5. 文本相关属性</a></li>
+<li><a href="#background">6. 背景与前景</a></li>
+<li><a href="#image-trans">7. 图像变换</a></li>
+<li><a href="#border">8. 边框效果</a></li>
+<li><a href="#animation">9. 动画效果</a></li>
+<li><a href="#interaction">10. 交互扩展</a></li>
+<li><a href="#behavior">11. behavior 行为属性</a></li>
+<li><a href="#scrollbar">12. 滚动条样式</a></li>
+<li><a href="#csss">13. CSSS! 脚本</a></li>
+<li><a href="#constants">14. CSS 常量与变量</a></li>
+<li><a href="#notes">15. 注意事项与踩坑</a></li>
+</ul>
+</div>
+
+<!-- ==================== 1. 概述 ==================== -->
+<div class="section" id="overview">
+<h2>1. 概述</h2>
+<p>HTMLayout 的 CSS 支持以 <strong>CSS 2.1</strong> 为基准，同时支持部分 CSS3 属性和选择符，以及大量独有扩展属性。</p>
+<p>与标准 CSS3 的主要差异：</p>
+<ul>
+<li>不支持 <code>flexbox</code>，用 <code>flow</code> + <code>%%</code> / <code>*</code> 替代</li>
+<li>不支持 <code>linear-gradient()</code>，用四角颜色 <code>background-color: A B C D</code> 替代</li>
+<li>不支持 <code>transition</code> 动画语法，但有自己的 <code>transition</code> 扩展</li>
+<li>扩展了 <code>flow</code>、<code>behavior</code>、<code>foreground</code> 等独有属性</li>
+<li>支持 CSSS! 脚本，可在 CSS 中写简单逻辑</li>
+</ul>
+</div>
+
+<!-- ==================== 2. 选择符 ==================== -->
+<div class="section" id="selectors">
+<h2>2. 扩展选择符</h2>
+<p>HTMLayout 支持 CSS 2.1 标准选择符，并扩展了以下选择符：</p>
+
+<h3>属性选择符</h3>
+<table>
+<tr><th>选择符</th><th>说明</th><th>示例</th></tr>
+<tr><td><code>[foo^="val"]</code></td><td>属性值以 "val" 开头</td><td><code>div[id^="r-start-"]</code></td></tr>
+<tr><td><code>[foo$="val"]</code></td><td>属性值以 "val" 结尾</td><td><code>input[class$="-btn"]</code></td></tr>
+<tr><td><code>[foo*="val"]</code></td><td>属性值含 "val" 字串</td><td><code>a[href*="example"]</code></td></tr>
+</table>
+
+<h3>伪类选择符</h3>
+<table>
+<tr><th>选择符</th><th>说明</th></tr>
+<tr><td><code>:not(...)</code></td><td>"非"状态选择符</td></tr>
+<tr><td><code>:nth-child(An+B)</code></td><td>分组定位第 B 个</td></tr>
+<tr><td><code>:nth-last-child(An+B)</code></td><td>倒序分组定位</td></tr>
+<tr><td><code>:only-child</code></td><td>父元素中唯一的子元素</td></tr>
+<tr><td><code>:only-of-type</code></td><td>父元素中唯一类型的子元素</td></tr>
+<tr><td><code>:focus</code></td><td>拥有焦点</td></tr>
+<tr><td><code>:tab-focus</code></td><td>通过 TAB 键获得焦点</td></tr>
+<tr><td><code>:current</code></td><td>当前选定（option 等）</td></tr>
+<tr><td><code>:checked</code></td><td>被选定（checkbox / radio）</td></tr>
+<tr><td><code>:disabled</code></td><td>被禁用</td></tr>
+<tr><td><code>:read-only</code></td><td>只读</td></tr>
+<tr><td><code>:empty</code></td><td>内容为空</td></tr>
+<tr><td><code>:has-child</code></td><td>含一个子元素</td></tr>
+<tr><td><code>:has-children</code></td><td>含多个子元素</td></tr>
+</table>
+
+<h3>拖放相关伪类</h3>
+<table>
+<tr><th>选择符</th><th>说明</th></tr>
+<tr><td><code>:popup</code></td><td>作为弹出菜单显示</td></tr>
+<tr><td><code>:owns-popup</code></td><td>触发了弹出菜单</td></tr>
+<tr><td><code>:drop-target</code></td><td>可接受拖放对象</td></tr>
+<tr><td><code>:drag-over</code></td><td>拖放悬停中</td></tr>
+<tr><td><code>:moving</code></td><td>移动模式拖放中</td></tr>
+<tr><td><code>:copying</code></td><td>副本模式拖放中</td></tr>
+<tr><td><code>:drag-source</code></td><td>拖放源</td></tr>
+<tr><td><code>:drop-marker</code></td><td>拖放目标指示</td></tr>
+</table>
+</div>
+
+<!-- ==================== 3. 单位 ==================== -->
+<div class="section" id="units">
+<h2>3. 单位系统</h2>
+<table>
+<tr><th>单位</th><th>说明</th><th>示例</th></tr>
+<tr><td><code>px</code></td><td>像素</td><td><code>width: 100px;</code></td></tr>
+<tr><td><code>%</code></td><td>百分比（基于父元素）</td><td><code>width: 80%;</code></td></tr>
+<tr><td><code>dip</code></td><td>设备无关像素（推荐）</td><td><code>height: 32dip;</code></td></tr>
+<tr><td><code>%%</code></td><td>剩余空间比例分配</td><td><code>width: 50%%;</code></td></tr>
+<tr><td><code>*</code></td><td>均分剩余空间</td><td><code>height: *;</code></td></tr>
+<tr><td><code>em</code></td><td>相对字体大小</td><td><code>font-size: 1.2em;</code></td></tr>
+</table>
+
+<div class="note">
+<strong>核心概念：</strong><code>%%</code> 和 <code>*</code> 是 HTMLayout 弹性布局的关键。
+<ul>
+<li><code>50%%</code> 表示占用剩余空间的 50%</li>
+<li><code>*</code> 表示均分剩余空间（多个 <code>*</code> 等分）</li>
+<li><code>margin</code> 和 <code>padding</code> 也可使用 <code>%%</code> 单位</li>
+</ul>
+</div>
+
+<pre><code>/* 两个子元素各占 50% 剩余空间 */
+#a { width: 50%%; }
+#b { width: 50%%; }
+
+/* 三个子元素均分剩余空间 */
+.a { width: *; }
+.b { width: *; }
+.c { width: *; }</code></pre>
+</div>
+
+<!-- ==================== 4. 布局 ==================== -->
+<div class="section" id="layout">
+<h2>4. 布局属性</h2>
+
+<h3>flow — 容器内布局方向 <span class="tag ext">扩展</span></h3>
+<p>替代 CSS3 flexbox 的核心属性，控制子元素的排列方式。</p>
+<table>
+<tr><th>值</th><th>说明</th></tr>
+<tr><td><code>vertical</code></td><td>子元素垂直排列（类似 flex-direction: column）</td></tr>
+<tr><td><code>horizontal</code></td><td>子元素水平排列（类似 flex-direction: row）</td></tr>
+<tr><td><code>v-flow</code></td><td>垂直流式布局（超出则换行）</td></tr>
+<tr><td><code>h-flow</code></td><td>水平流式布局（超出则换行）</td></tr>
+</table>
+
+<pre><code>/* 垂直布局，子元素从上到下排列 */
+#app {
+    size: *;
+    flow: vertical;
+    border-spacing: 10dip;  /* 子元素间距 */
+}
+
+/* 水平布局，子元素从左到右排列 */
+.toolbar {
+    flow: horizontal;
+    border-spacing: 8dip;
+    vertical-align: middle;
+}</code></pre>
+
+<h3>对齐属性</h3>
+<table>
+<tr><th>属性</th><th>说明</th><th>可选值</th></tr>
+<tr><td><code>horizontal-align</code></td><td>水平对齐</td><td><code>left</code> / <code>center</code> / <code>right</code></td></tr>
+<tr><td><code>vertical-align</code></td><td>垂直对齐</td><td><code>top</code> / <code>middle</code> / <code>bottom</code></td></tr>
+<tr><td><code>text-align</code></td><td>文本对齐</td><td><code>left</code> / <code>center</code> / <code>right</code></td></tr>
+</table>
+
+<pre><code>/* 按钮内文字垂直水平居中 */
+.btn {
+    flow: horizontal;
+    horizontal-align: center;
+    vertical-align: middle;
+    text-align: center;
+    behavior: clickable;
+}</code></pre>
+
+<h3>border-spacing — 子元素间距</h3>
+<p>在 <code>flow: horizontal</code> 或 <code>flow: vertical</code> 布局中，控制子元素之间的间距。</p>
+<pre><code>.card-list {
+    flow: vertical;
+    border-spacing: 15dip;  /* 子元素间垂直间距 15dip */
+}</code></pre>
+
+<h3>size — 简写</h3>
+<p><code>size</code> 是 <code>width</code> 和 <code>height</code> 的简写。</p>
+<pre><code>#app { size: *; }         /* 等价于 width:*; height:*; */
+.spacer { size: *; }      /* 弹性占位符 */</code></pre>
+
+<h3>position</h3>
+<p>支持 <code>static</code>、<code>relative</code>、<code>absolute</code>、<code>fixed</code>，用法同 CSS 2.1。</p>
+<pre><code>.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+}
+.modal-close {
+    position: absolute;
+    right: 12dip;
+    top: 14dip;
+}</code></pre>
+</div>
+
+<!-- ==================== 5. 文本 ==================== -->
+<div class="section" id="text">
+<h2>5. 文本相关属性</h2>
+
+<h3>特殊系统字体 <span class="tag ext">扩展</span></h3>
+<pre><code>font: system;           /* 系统输入框字体 */
+font: system-menu;      /* 系统菜单字体 */
+font: system-caption;   /* 窗口标题字体 */
+font: system-status;    /* 状态栏 tooltip 字体 */</code></pre>
+
+<h3>文本选择区颜色 <span class="tag ext">扩展</span></h3>
+<pre><code>/* 格式：前景色 背景色 */
+text-selection: #FFF #C00;</code></pre>
+
+<h3>文本截断 <span class="tag css3">CSS3</span></h3>
+<pre><code>/* 需配合 white-space: nowrap; overflow: hidden; */
+text-overflow: ellipsis;</code></pre>
+
+<h3>折行控制 <span class="tag ext">扩展</span></h3>
+<table>
+<tr><th>属性</th><th>值</th><th>说明</th></tr>
+<tr><td><code>text-wrap</code></td><td><code>unrestricted</code></td><td>允许截断换行</td></tr>
+<tr><td><code>white-space</code></td><td><code>prewrap</code></td><td>多行文本框折行方式</td></tr>
+<tr><td><code>white-space</code></td><td><code>nowrap</code></td><td>不换行</td></tr>
+<tr><td><code>white-space</code></td><td><code>pre</code></td><td>保留空白和换行</td></tr>
+</table>
+
+<h3>content — 生成内容 <span class="tag css3">CSS3</span></h3>
+<pre><code>.label::before {
+    content: "★ ";
+}</code></pre>
+
+<h3>@font-face — 字体嵌入</h3>
+<div class="warn">
+<strong>重要：</strong><code>@font-face</code> 必须是 <code>&lt;style&gt;</code> 中的第一条规则，否则可能不生效。
+</div>
+<pre><code>@font-face {
+    font-family: '阿里巴巴普惠体 2.0 55 Regular';
+    src: url('resources://alibaba_puhui.ttf');
+}
+html {
+    font-family: '阿里巴巴普惠体 2.0 55 Regular';
+}</code></pre>
+</div>
+
+<!-- ==================== 6. 背景与前景 ==================== -->
+<div class="section" id="background">
+<h2>6. 背景与前景</h2>
+
+<h3>渐变色背景 <span class="tag ext">扩展</span></h3>
+<p>HTMLayout 不支持 CSS3 的 <code>linear-gradient()</code>，但支持四角颜色渐变。</p>
+<div class="warn">
+<strong>注意：</strong>虽然写 <code>linear-gradient(135deg, #ff6b6b, #ff8e53)</code> 不会报错，但引擎会忽略它，退化为纯色或无背景。必须使用以下语法：
+</div>
+<pre><code>/* 格式：上左颜色 上右颜色 下右颜色 下左颜色 */
+background-color: red yellow blue yellow;
+
+/* 实际示例：标题栏渐变 */
+#title-bar-wrap {
+    background-color: #4ecdc4 #44a08d #282b32 #1a1a2e;
+}</code></pre>
+
+<h3>背景图模式 — background-repeat</h3>
+<table>
+<tr><th>模式</th><th>说明</th></tr>
+<tr><td><code>no-repeat</code></td><td>不缩放不重复，配合 position 定位</td></tr>
+<tr><td><code>repeat</code></td><td>重复铺满（含边框区域）</td></tr>
+<tr><td><code>repeat-x</code></td><td>横向重复</td></tr>
+<tr><td><code>repeat-y</code></td><td>垂直重复</td></tr>
+<tr><td><code>expand</code></td><td>九宫格切图，四角保持原样</td></tr>
+<tr><td><code>stretch</code></td><td>拉伸适应节点内部空间</td></tr>
+</table>
+
+<h3>九宫格切片贴图（expand）</h3>
+<p>将图片切为 3x3 九块，四角保持原样不拉伸，中间块默认平铺或拉伸。</p>
+<pre><code>background: url(bg.png) expand;
+/* 切片位置：上 右 下 左 */
+background-position: 30px 30px 30px 30px;
+/* 指定拉伸的中间块 */
+background-stretch: stretch-top stretch-bottom stretch-left stretch-right stretch-middle;
+/* 不指定 stretch 的中间块默认平铺 */</code></pre>
+
+<h3>stretch 模式 — 保持长宽比</h3>
+<pre><code>background: url(image.png) stretch keep-ratio;</code></pre>
+
+<h3>精确定位属性 <span class="tag ext">扩展</span></h3>
+<pre><code>/* 图片相对 padding box 的偏移 */
+background-position-left: 10px;     /* 左上角左侧偏移 */
+background-position-top: 10px;       /* 左上角顶部偏移 */
+background-position-right: 10px;    /* 右下角右侧偏移 */
+background-position-bottom: 10px;   /* 右下角底部偏移 */
+
+/* 简写：横坐标 纵坐标 */
+background-position: 50px 50px;
+
+/* expand 模式简写：上 右 下 左 */
+background-position: 6px 6px 6px 6px;</code></pre>
+
+<div class="note">
+<strong>坐标含义：</strong>这里的坐标指图片左上角相对于节点 <code>padding box</code> 的偏移，不是图片本身的坐标。正数表示向右/向下移动，负数表示向左/向上移动。
+</div>
+
+<h3>前景样式（foreground） <span class="tag ext">扩展</span></h3>
+<p>前景样式与背景语法完全相同，只需将 <code>background</code> 替换为 <code>foreground</code>。前景覆盖在背景和内容之上。</p>
+<pre><code>foreground: red url(fg.png) no-repeat 50% 50%;
+foreground-color: ...;
+foreground-image: ...;
+foreground-repeat: ...;
+foreground-position: ...;
+foreground-stretch: ...;</code></pre>
+
+<div class="tip">
+<strong>层级关系：</strong>父元素 A 的前景图 &gt; 子元素 B 的背景图 &gt; 父元素 A 的背景图。前景图常用于按钮图标，背景图用于按钮底纹。
+</div>
+
+<h3>Data URI 支持</h3>
+<pre><code>background-image: url(data:image/png;base64,iVBORw0KGgo...);</code></pre>
+</div>
+
+<!-- ==================== 7. 图像变换 ==================== -->
+<div class="section" id="image-trans">
+<h2>7. 图像变换效果</h2>
+<p>HTMLayout 支持对前景和背景图像的多种变换效果。</p>
+
+<table>
+<tr><th>变换函数</th><th>说明</th><th>参数</th></tr>
+<tr><td><code>opacity(n)</code></td><td>透明度</td><td><code>0.0</code> ~ <code>1.0</code></td></tr>
+<tr><td><code>flip-x()</code></td><td>左右翻转</td><td>无</td></tr>
+<tr><td><code>flip-y()</code></td><td>上下翻转</td><td>无</td></tr>
+<tr><td><code>colorize(#color)</code></td><td>颜色滤镜</td><td>颜色值</td></tr>
+<tr><td><code>contrast-brightness-gamma(c, b, g)</code></td><td>对比度/亮度/gamma</td><td>各值中间值 <code>0.5</code></td></tr>
+<tr><td><code>color-schema(c1, c2, ...)</code></td><td>灰度色插值变换</td><td>多个颜色</td></tr>
+</table>
+
+<pre><code>/* 透明度 */
+background-image-transformation: opacity(0.5);
+
+/* 颜色滤镜 — 常用于禁用状态 */
+background-image-transformation: colorize(#FFCC00);
+
+/* 对比度亮度调整 — 常用于 hover 效果 */
+img:hover {
+    foreground-image-transformation: contrast-brightness-gamma(0.5, 0.3, 1.2);
+}
+
+/* 灰度色插值 */
+background-image-transformation: color-schema(red, yellow, blue);</code></pre>
+</div>
+
+<!-- ==================== 8. 边框 ==================== -->
+<div class="section" id="border">
+<h2>8. 边框效果</h2>
+
+<h3>圆角边框 <span class="tag css3">CSS3</span></h3>
+<pre><code>border-radius: 4px;
+border-radius: 50%;       /* 圆形 */
+border-radius: 8dip 8dip 0 0;  /* 上圆下直 */</code></pre>
+
+<h3>光晕效果 <span class="tag ext">扩展</span></h3>
+<pre><code>/* 格式：宽度 glow 颜色 渐变偏移值 */
+outline: 1px glow #0CF 3px;</code></pre>
+<p>如果元素有背景色或背景图，光晕边缘会按背景轮廓绘制。</p>
+
+<h3>阴影效果 <span class="tag ext">扩展</span></h3>
+<pre><code>outline: 1px glow #0CF 3px;
+outline-shift: 3px;  /* 阴影偏移 */</code></pre>
+
+<h3>实际示例</h3>
+<pre><code>/* 输入框聚焦光晕 */
+#join-code:hover {
+    outline: 2dip glow #94bdc7 2dip;
+}
+
+/* 按钮 hover 光晕 */
+.action-card:hover {
+    outline: 18dip glow #494949 8dip;
+}</code></pre>
+</div>
+
+<!-- ==================== 9. 动画 ==================== -->
+<div class="section" id="animation">
+<h2>9. 动画效果</h2>
+
+<h3>transition — 状态渐变 <span class="tag ext">扩展</span></h3>
+<p>HTMLayout 的 <code>transition</code> 与 CSS3 不同，是状态切换时的渐变效果。</p>
+<pre><code>/* blend 渐变切换 — 适合按钮，有性能问题不建议大量使用 */
+transition: blend;
+
+/* 自定义属性变换 */
+transition: width(linear, 400ms) height(linear, 400ms);
+transition: width(back-in, 0.5s) background-color(back-in, 0.5s, 0.5s);</code></pre>
+
+<h3>动画速率函数</h3>
+<table>
+<tr><th>函数</th><th>说明</th></tr>
+<tr><td><code>linear</code></td><td>线性变化</td></tr>
+<tr><td><code>back-in</code></td><td>回弹进入</td></tr>
+<tr><td><code>back-out</code></td><td>回弹退出</td></tr>
+<tr><td><code>blend</code></td><td>混合渐变</td></tr>
+</table>
+
+<h3>CSSS! 脚本动画</h3>
+<pre><code>.notification.show {
+    display: block;
+    assigned!: self::opacity = 0.01, self.start-animation();
+    animation-step!: self::opacity &lt; 1.0
+        ? ( self::opacity = self::opacity + 0.01, return 10 )
+        # ( self.fade = "", return cancel );
+}</code></pre>
+</div>
+
+<!-- ==================== 10. 交互 ==================== -->
+<div class="section" id="interaction">
+<h2>10. 交互扩展</h2>
+
+<h3>hit-margin — 扩大响应区域 <span class="tag ext">扩展</span></h3>
+<pre><code>/* 从 border 算起，扩大交互范围 */
+hit-margin: 4px 5px 4px 8px;</code></pre>
+
+<h3>context-menu — 右键菜单 <span class="tag ext">扩展</span></h3>
+<pre><code>context-menu: selector(#ITEM_CONTEXT_MENU);</code></pre>
+
+<h3>拖放操作 <span class="tag ext">扩展</span></h3>
+<pre><code>.item {
+    draggable: only-move;
+}
+.item-container {
+    drop: insert;
+    accept-drop: selector(.item);
+}</code></pre>
+
+<table>
+<tr><th>draggable 取值</th><th>说明</th></tr>
+<tr><td><code>none</code></td><td>不可拖动</td></tr>
+<tr><td><code>copy-move</code></td><td>复制并移动</td></tr>
+<tr><td><code>only-copy</code></td><td>仅复制</td></tr>
+<tr><td><code>only-move</code></td><td>仅移动</td></tr>
+</table>
+
+<table>
+<tr><th>drop 取值</th><th>说明</th></tr>
+<tr><td><code>insert</code></td><td>在鼠标位置插入</td></tr>
+<tr><td><code>append</code></td><td>在最后面添加</td></tr>
+<tr><td><code>prepend</code></td><td>在最前面添加</td></tr>
+<tr><td><code>recycle</code></td><td>删除</td></tr>
+</table>
+</div>
+
+<!-- ==================== 11. behavior ==================== -->
+<div class="section" id="behavior">
+<h2>11. behavior 行为属性</h2>
+<p>通过 CSS 为元素附加预定义交互行为，是 HTMLayout 的核心扩展。</p>
+
+<h3>常用 behavior</h3>
+<table>
+<tr><th>行为</th><th>说明</th><th>属性</th><th>状态</th></tr>
+<tr><td><code>button</code></td><td>标准按钮</td><td><code>value="caption"</code></td><td><code>:hover :active :focus :disabled</code></td></tr>
+<tr><td><code>clickable</code></td><td>可点击（不获得焦点）</td><td>—</td><td><code>:hover :active :disabled</code></td></tr>
+<tr><td><code>check</code></td><td>复选框</td><td><code>checked</code>, <code>mixed</code></td><td><code>:hover :active :focus :disabled :checked</code></td></tr>
+<tr><td><code>radio</code></td><td>单选框</td><td><code>name</code>, <code>value</code></td><td><code>:hover :active :focus :disabled :checked</code></td></tr>
+<tr><td><code>edit</code></td><td>文本输入框</td><td><code>filter</code>, <code>maxlength</code>, <code>novalue</code></td><td><code>:hover :focus :disabled :empty</code></td></tr>
+<tr><td><code>password</code></td><td>密码框</td><td><code>password-char</code></td><td>同 edit</td></tr>
+<tr><td><code>select</code></td><td>下拉列表</td><td><code>size</code>, <code>multiple</code></td><td><code>option:current</code></td></tr>
+<tr><td><code>menu</code></td><td>菜单容器</td><td>—</td><td><code>:current</code></td></tr>
+<tr><td><code>menu-bar</code></td><td>菜单栏</td><td>—</td><td>—</td></tr>
+<tr><td><code>popup-menu</code></td><td>弹出菜单</td><td><code>menu</code>, <code>align-popup</code></td><td>—</td></tr>
+<tr><td><code>progress</code></td><td>进度条</td><td><code>value</code>, <code>maxvalue</code></td><td>—</td></tr>
+<tr><td><code>path</code></td><td>路径缩略显示</td><td>—</td><td>—</td></tr>
+<tr><td><code>file-icon</code></td><td>文件图标显示</td><td><code>filename</code>, <code>icon-size</code></td><td>—</td></tr>
+<tr><td><code>light-box-dialog</code></td><td>模态对话框</td><td>—</td><td>—</td></tr>
+<tr><td><code>hyperlink</code></td><td>超链接</td><td><code>href</code></td><td><code>:hover</code></td></tr>
+</table>
+
+<h3>edit 的 filter 属性 — 输入限制</h3>
+<pre><code>&lt;!-- 只允许数字 --&gt;
+&lt;input filter="0~9" /&gt;
+
+&lt;!-- 允许字母、数字、. 和 @ --&gt;
+&lt;input filter=".@0~9a~zA~Z" /&gt;
+
+&lt;!-- 允许除 . , - 外的任意字符 --&gt;
+&lt;input filter="^.,-" /&gt;</code></pre>
+
+<h3>edit 的 novalue 属性 — 占位提示</h3>
+<pre><code>&lt;input novalue="请输入端口" /&gt;
+&lt;!-- 可通过 :empty 伪类修改占位文本样式 --&gt;
+input:empty { color: #555; }</code></pre>
+
+<h3>实际使用示例</h3>
+<pre><code>/* 可点击的卡片 */
+.action-card {
+    behavior: clickable;
+}
+.action-card:hover {
+    background: #32363f;
+}
+
+/* 模态对话框 */
+.modal {
+    behavior: light-box-dialog;
+}
+
+/* 超链接 */
+a { behavior: hyperlink; }
+a:hover { color: #4ecdc4; }
+
+/* 复选框 */
+a[type="check"] {
+    behavior: check;
+    display: inline-block;
+    cursor: pointer;
+}</code></pre>
+</div>
+
+<!-- ==================== 12. 滚动条 ==================== -->
+<div class="section" id="scrollbar">
+<h2>12. 滚动条样式</h2>
+<p>HTMLayout 支持通过 <code>@set</code> 规则自定义滚动条外观。</p>
+
+<pre><code>@set small-v-scrollbar {
+    .prev { border: 1px solid #1e2130; }
+    .next { border: 1px solid #1e2130; }
+    .slider {
+        background-color: #2a2e42;
+        min-height: 32px;
+    }
+    .next:disabled, .slider:disabled, .prev:disabled {
+        height: 0;
+        border: none;
+        foreground-image: none;
+    }
+    .next:hover, .slider:hover, .prev:hover {
+        background-color: #6366f1;
+    }
+    .base { width: 2px; }
+}
+
+/* 应用到元素 */
+pre#log {
+    vertical-scrollbar: small-v-scrollbar;
+    overflow: auto;
+}</code></pre>
+
+<h3>滚动条子元素</h3>
+<table>
+<tr><th>子元素</th><th>说明</th></tr>
+<tr><td><code>.base</code></td><td>滚动条背景轨道</td></tr>
+<tr><td><code>.slider</code></td><td>可拖动的滑块</td></tr>
+<tr><td><code>.prev</code></td><td>上/左箭头按钮</td></tr>
+<tr><td><code>.next</code></td><td>下/右箭头按钮</td></tr>
+</table>
+
+<table>
+<tr><th>应用属性</th><th>说明</th></tr>
+<tr><td><code>vertical-scrollbar</code></td><td>垂直滚动条</td></tr>
+<tr><td><code>horizontal-scrollbar</code></td><td>水平滚动条</td></tr>
+</table>
+</div>
+
+<!-- ==================== 13. CSSS! ==================== -->
+<div class="section" id="csss">
+<h2>13. CSSS! 脚本</h2>
+<p>HTMLayout 内置的简单脚本语言，可在 CSS 中使用，以 <code>!</code> 结尾的事件属性触发。</p>
+
+<h3>事件属性</h3>
+<table>
+<tr><th>属性</th><th>触发时机</th></tr>
+<tr><td><code>assigned!</code></td><td>样式被应用到元素时</td></tr>
+<tr><td><code>click!</code></td><td>元素被点击时</td></tr>
+<tr><td><code>animation-step!</code></td><td>动画每一步</td></tr>
+<tr><td><code>value-changed!</code></td><td>值发生变化时</td></tr>
+</table>
+
+<h3>语法要点</h3>
+<ul>
+<li><code>self</code> — 当前元素</li>
+<li><code>self::property</code> — 访问 CSS 属性</li>
+<li><code>return value</code> — 返回值（动画延迟毫秒数等）</li>
+<li><code>condition ? (expr) # (expr)</code> — 三元表达式（用 <code>#</code> 而非 <code>:</code>）</li>
+<li><code>,</code> — 语句分隔符</li>
+</ul>
+
+<h3>示例 — 淡入动画</h3>
+<pre><code>.notification.show {
+    display: block;
+    assigned!: self::opacity = 0.01, self.start-animation();
+    animation-step!: self::opacity &lt; 1.0
+        ? ( self::opacity = self::opacity + 0.01, return 10 )
+        # ( self.fade = "", return cancel );
+}</code></pre>
+</div>
+
+<!-- ==================== 14. 常量 ==================== -->
+<div class="section" id="constants">
+<h2>14. CSS 常量与变量</h2>
+
+<h3>@const — 常量定义 <span class="tag ext">扩展</span></h3>
+<pre><code>@const BASE_COLOR: #22c55e;
+
+h1.title b:nth-child(1) { color: tint(@BASE_COLOR, -0.5, -0.5); }
+h1.title b:nth-child(2) { color: tint(@BASE_COLOR, -0.25, -0.5); }
+h1.title b:nth-child(3) { color: tint(@BASE_COLOR, 0.0, -0.5); }</code></pre>
+
+<h3>tint() — 颜色调色函数 <span class="tag ext">扩展</span></h3>
+<pre><code>/* tint(基础颜色, 亮度调整, 饱和度调整) */
+/* 亮度: -1.0 ~ 1.0, 0 为不变 */
+/* 饱和度: -1.0 ~ 1.0, 0 为不变 */
+color: tint(@BASE_COLOR, 0.5, -0.5);</code></pre>
+</div>
+
+<!-- ==================== 15. 注意事项 ==================== -->
+<div class="section" id="notes">
+<h2>15. 注意事项与踩坑</h2>
+
+<div class="warn">
+<strong>1. 不支持 CSS3 <code>linear-gradient()</code></strong><br>
+渐变只能用四角颜色 <code>background-color: A B C D</code>。写 <code>linear-gradient</code> 不会报错但会被忽略。
+</div>
+
+<div class="warn">
+<strong>2. 不支持 flexbox</strong><br>
+用 <code>flow: vertical/horizontal</code> + <code>%%</code> / <code>*</code> 单位实现弹性布局。
+</div>
+
+<div class="warn">
+<strong>3. <code>@font-face</code> 必须放在 <code>&lt;style&gt;</code> 最前面</strong><br>
+否则字体可能不生效。<code>@font-face</code> 之后才能写其他规则。
+</div>
+
+<div class="warn">
+<strong>4. <code>SetHtml</code> 动态插入的 HTML 不应含多余空白</strong><br>
+换行和制表符会被当作文本节点，影响表格行间距等布局。动态生成的 HTML 应写成紧凑单行。
+</div>
+
+<div class="warn">
+<strong>5. <code>SetText("")</code> 会 panic（gohl bug）</strong><br>
+空字符串需传 <code>" "</code>（一个空格）占位。
+</div>
+
+<div class="warn">
+<strong>6. <code>&lt;input&gt;</code> 值读取用 <code>GetValue()</code></strong><br>
+<code>ValueAsString()</code> 对 <code>&lt;input&gt;</code> 元素无效，始终返回空字符串。
+</div>
+
+<div class="tip">
+<strong>7. 推荐使用 <code>dip</code> 单位</strong><br>
+<code>dip</code> 是设备无关像素，能自动适应 DPI 缩放。避免在高 DPI 屏幕上布局错乱。
+</div>
+
+<div class="tip">
+<strong>8. <code>flow: vertical</code> + <code>height: *</code> 实现等分</strong><br>
+多个子元素都设 <code>height: *</code> 时会均分父元素剩余空间，类似 flexbox 的 <code>flex: 1</code>。
+</div>
+
+<div class="tip">
+<strong>9. <code>border-spacing</code> 控制子元素间距</strong><br>
+在 <code>flow: horizontal</code> 或 <code>flow: vertical</code> 布局中，<code>border-spacing</code> 是控制子元素间距的推荐方式。
+</div>
+
+<div class="tip">
+<strong>10. <code>overflow: auto</code> + <code>vertical-scrollbar</code> 实现自定义滚动条</strong><br>
+先设 <code>overflow: auto</code> 启用滚动，再用 <code>vertical-scrollbar: 名称</code> 引用 <code>@set</code> 定义的滚动条样式。
+</div>
+</div>
+
+</div>
+</body>
+</html>

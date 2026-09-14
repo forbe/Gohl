@@ -63,8 +63,6 @@ func initHtmlayoutLib() {
 		return
 	}
 
-	fmt.Printf("成功加载 htmlayout.dll: %s\n", dllPath)
-
 	initHtmlayoutFunctions()
 }
 
