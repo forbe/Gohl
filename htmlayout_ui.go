@@ -26,7 +26,7 @@ func GetDpiScale() float64 {
 	user32 := syscall.NewLazyDLL("user32.dll")
 
 	// 尝试使用 GetDpiForSystem (Windows 10 1607+)
-	if proc := user32.NewProc("GetDpiForSystem"); proc != nil {
+	if proc := user32.NewProc("GetDpiForSystem"); proc != nil && proc.Find() == nil {
 		dpi, _, _ := proc.Call()
 		if dpi != 0 {
 			log.Printf("[DPI] GetDpiForSystem returned: %d (scale: %.2f)", dpi, float64(dpi)/96.0)
