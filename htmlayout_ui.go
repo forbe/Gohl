@@ -320,6 +320,20 @@ type ResourceLoader func(uri string) ([]byte, uint32, bool)
 var resourceLoaders = make(map[string]ResourceLoader)
 var loadedResources = make(map[string][]byte)
 
+// requestedResources 记的是引擎来要过哪些 URI（成功与否都算）。图标字体不出图时，
+// 「@font-face/scheme 没生效」和「字体本身不对」长得一模一样，只能靠这个分辨。
+var requestedResources = make(map[string]struct{})
+
+// ResourceRequested 报告引擎有没有来要过这个 URI。自定义 scheme 的回调拿到的 URI 常常
+// 带个尾斜杠，这里两种写法都认。
+func ResourceRequested(uri string) bool {
+	if _, ok := requestedResources[uri]; ok {
+		return true
+	}
+	_, ok := requestedResources[uri+"/"]
+	return ok
+}
+
 func RegisterResourceLoader(scheme string, loader ResourceLoader) {
 	resourceLoaders[scheme] = loader
 }
@@ -336,6 +350,7 @@ func defaultOnLoadData(params *NmhlLoadData) uintptr {
 	}
 
 	uri := utf16ToString(params.Uri)
+	requestedResources[uri] = struct{}{}
 
 	// 先检查缓存
 	if data, ok := loadedResources[uri]; ok && len(data) > 0 {
@@ -1066,7 +1081,10 @@ func (w *Window) Restore() {
 }
 
 func (w *Window) Close() {
-	procDestroyWindow.Call(uintptr(w.hwnd))
+	// 走 WM_CLOSE 而不是直接 DestroyWindow：那条路上有停动画线程、摘 notify/event
+	// handler、清资源这几步。跳过它们，排队中的 HTMLayout 消息就会打到已脱钩的 layout 上，
+	// 进程在退出时以 0xc0000005 死掉。用 Post 不用 Send，因为关闭常常是在按钮回调里发生的。
+	procPostMessage.Call(uintptr(w.hwnd), WM_CLOSE, 0, 0)
 }
 
 func (w *Window) SetTitle(title string) {

@@ -1,0 +1,133 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>图标字体预览</title>
+<style>
+@font-face{ font-family:'阿里巴巴普惠体 2.0 55 Regular'; src:url('resources://alibaba_puhui.ttf'); }
+@font-face{ font-family:'@@FAMILY@@'; src:url('@@URI@@'); }
+
+*{ font-family:'阿里巴巴普惠体 2.0 55 Regular'; font-size:13dip; color:#c9ced8; }
+html,body{ size:*; margin:0; padding:0; background:transparent; }
+
+#frame{ size:*; flow:vertical; background:#17191d; border:1dip solid #2a2d34; border-radius:10dip;
+  padding:0; overflow:hidden; }
+
+#tbar{ flow:horizontal; height:34dip; padding:0 10dip; vertical-align:middle; border-spacing:6dip;
+  background:#1b1e23; border-bottom:1dip solid #2a2d34; }
+#tbar .t{ font-size:14dip; color:#e8c04a; }
+#tbar .spacer{ width:*; }
+.wbtn{ width:30dip; height:22dip; background:transparent; border:none; color:#8b909a; font-size:13dip; }
+.wbtn:hover{ color:#ff6b6b; }
+
+#bar{ flow:horizontal; padding:8dip 10dip; border-spacing:6dip; vertical-align:middle;
+  background:#15171b; border-bottom:1dip solid #23262c; }
+#bar .lab{ color:#8b909a; }
+#q{ width:150dip; height:24dip; padding:0 8dip; background:#0f1013;
+  border:1dip solid #2a2d34; border-radius:6dip; color:#e6e9ef; }
+#q:focus{ border-color:#e8c04a; }
+.btn{ height:24dip; padding:0 10dip; background:#22262d; border:1dip solid #2f343c; border-radius:6dip;
+  color:#c9ced8; cursor:pointer; }
+.btn:hover{ background:#2b3038; }
+.btn.off{ color:#5d636d; border-color:#25282e; background:#181a1e; }
+#cnt{ color:#8b909a; width:*; text-align:right; }
+
+#grid{ size:*; overflow:auto; padding:8dip 10dip; background:#17191d; }
+#grid table{ width:100%; flow:table-fixed; border-spacing:6dip; }
+#grid td{ width:1*; }
+
+/* clickable 是引擎自带的行为：div 不写它就只是一块皮，OnButtonClick 收不到。
+   用 div 而不是 button，是因为 button 的内容由引擎按行内排，flow:vertical 压不住。 */
+.cell{ behavior:clickable; flow:vertical; height:88dip; padding:6dip 4dip; text-align:center;
+  background:#1d2026; border:1dip solid #2a2e35; border-radius:8dip; cursor:pointer; }
+.cell:hover{ border-color:#e8c04a; background:#23262d; }
+.cell.sel{ border-color:#e8c04a; background:#2a2416; }
+/* span 是行内元素，flow:vertical 会把它们收进同一个行盒里挤成一行 —— 必须各自
+   display:block 才真的按行排。 */
+.cell .gl{ display:block; font-family:'@@FAMILY@@'; font-size:32dip; line-height:38dip; height:38dip;
+  color:#e6e9ef; }
+.cell .cp{ display:block; font-family:Consolas,monospace; font-size:11dip; color:#e8c04a; margin-top:4dip; }
+.cell .nm{ display:block; font-size:11dip; color:#8b909a; margin-top:2dip; overflow:hidden;
+  white-space:nowrap; text-overflow:ellipsis; }
+.cell.pua .gl{ color:#5d636d; }
+.cell.pua .cp{ color:#8b909a; }
+
+#detail{ flow:horizontal; padding:10dip; border-spacing:10dip; vertical-align:middle;
+  background:#15171b; border-top:1dip solid #23262c; }
+#big{ font-family:'@@FAMILY@@'; font-size:44dip; width:64dip; height:56dip; text-align:center;
+  vertical-align:middle; color:#e8c04a; background:#0f1013; border:1dip solid #2a2d34; border-radius:8dip; }
+#fields{ flow:vertical; width:*; min-width:0; border-spacing:2dip; }
+.frow{ flow:horizontal; vertical-align:middle; border-spacing:6dip; }
+.frow .k{ width:62dip; color:#8b909a; font-size:12dip; }
+.frow .v{ width:*; min-width:0; font-family:Consolas,monospace; font-size:12dip; color:#e6e9ef;
+  background:#0f1013; border:1dip solid #262a30; border-radius:5dip; padding:2dip 6dip; }
+
+a{ behavior:hyperlink; color:#e8c04a; text-decoration:none; cursor:pointer; font-size:12dip; }
+a:hover{ color:#fff; }
+a.copy{ width:34dip; text-align:center; border:1dip solid rgba(232,192,74,.35); border-radius:6dip;
+  background-color:rgba(232,192,74,.12) rgba(232,192,74,.12) rgba(232,192,74,.04) rgba(232,192,74,.04); }
+a.copy:hover{ color:#17130a; border-color:#e8c04a; background-color:#e8c04a; }
+
+#foot{ flow:vertical; padding:6dip 10dip; border-spacing:4dip; vertical-align:middle;
+  background:#1b1e23; border-top:1dip solid #23262c; }
+#foot .fr{ flow:horizontal; border-spacing:8dip; vertical-align:middle; }
+#foot .k{ color:#8b909a; font-size:12dip; }
+#foot .spacer{ width:*; }
+#toast{ color:#e8c04a; font-size:12dip; }
+.win-opt{ flow:horizontal; border-spacing:4dip; width:auto; }
+</style>
+</head>
+<body>
+<div id="frame">
+
+  <div id="tbar" -gohl-drag>
+    <div class="t">图标字体预览</div>
+    <div class="spacer"></div>
+    <div class="win-opt">
+	    <button id="win-min" class="wbtn" -gohl-min>─</button>
+	    <button id="win-close" class="wbtn">✕</button>
+    </div>
+  </div>
+
+  <div id="bar">
+    <span class="lab">过滤</span>
+    <input type="text" id="q">
+    <button class="btn" id="seg-usable">可用码位</button>
+    <button class="btn" id="seg-all">全部（含 PUA）</button>
+    <span class="lab">字号</span>
+    <button class="btn" id="sz-24">24</button>
+    <button class="btn" id="sz-32">32</button>
+    <button class="btn" id="sz-48">48</button>
+    <span id="cnt">—</span>
+  </div>
+
+  <div id="grid"></div>
+
+  <div id="detail">
+    <div id="big"> </div>
+    <div id="fields">
+      <div class="frow"><span class="k">名称</span><div class="v" id="d-name">点左边任意一格</div><a class="copy" role="copy" target="d-name">复制</a></div>
+      <div class="frow"><span class="k">码位</span><div class="v" id="d-cp">—</div><a class="copy" role="copy" target="d-cp">复制</a></div>
+      <div class="frow"><span class="k">Go 转义</span><div class="v" id="d-go">—</div><a class="copy" role="copy" target="d-go">复制</a></div>
+      <div class="frow"><span class="k">CSS 内容</span><div class="v" id="d-css">—</div><a class="copy" role="copy" target="d-css">复制</a></div>
+      <div class="frow"><span class="k">HTML</span><div class="v" id="d-html">—</div><a class="copy" role="copy" target="d-html">复制</a></div>
+      <div class="frow"><span class="k">字符本身</span><div class="v" id="d-char">—</div><a class="copy" role="copy" target="d-char">复制</a></div>
+    </div>
+  </div>
+
+  <div id="foot">
+    <div class="fr">
+      <span class="k" id="fontstat">字体 —</span>
+      <span class="k" id="fonthint"> </span>
+    </div>
+    <div class="fr">
+      <div class="spacer"></div>
+      <span id="toast"> </span>
+      <button class="btn" id="open-font">打开字体文件…</button>
+      <button class="btn" id="font-reset">回到内置</button>
+      <button class="btn" id="exp-go">导出 Go 常量</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -10,20 +10,23 @@ Gohl 是 [HTMLayout](https://terrainformatica.com/htmlayout/) 引擎的 Go 语�
 
 - **HTML/CSS 渲染** - 使用标准的 HTML 和 CSS 构建界面
 - **No CGO** - 完全的syscall调用，高性能，不挑编译环境
-- **独立编译** 内置HTMLayout.dll和阿里巴巴普惠体(自包含于resources.zip)，编译会独立生成exe文件，无需显式依赖HTMLayout.dll
+- **独立编译** 内置HTMLayout.dll、阿里巴巴普惠体、iconfont图标字体(自包含于resources.zip)，编译会独立生成exe文件，无需显式依赖HTMLayout.dll
 - **无边框窗口** - 支持自定义标题栏和窗口控制
 - **圆角窗口** - 支持设置窗口圆角半径
 - **内置 Behaviors** - 提供 tabs、light-box-dialog、hyperlink 等常用组件行为
 - **DOM 操作** - 完整的元素选择、属性操作、样式修改等 API
 - **事件系统** - 支持鼠标、键盘、焦点、自定义事件等
 - **资源加载** - 支持从文件或内存加载 HTML 和资源
+- **内置图标字体** - resources.zip 带一支可直接使用的 iconfont，详见「图标字体」
 - **定时器** - 支持一次性定时器回调
 
 ## 安装
 
 ```bash
-go get github.com/forbe/Gohl
+go get github.com/forbe/gohl
 ```
+
+> import 路径是小写的 `github.com/forbe/gohl`（模块名如此，与仓库大小写不同）。
 
 ## 快速开始
 
@@ -98,6 +101,9 @@ type WindowConfig struct {
 | `-gohl-min` | 最小化窗口 |
 | `-gohl-max` | 最大化/还原窗口 |
 | `-gohl-close` | 关闭窗口 |
+
+> `gw.Close()` 发的是 `WM_CLOSE`，会走完停动画线程、摘事件回调、清资源这几步；不要绕过它直接 `DestroyWindow`，
+> 否则排队的 HTMLayout 消息会打到已脱钩的 layout 上，进程退出时 `0xc0000005`。
 
 ## 内置 Behaviors
 
@@ -208,6 +214,68 @@ gw.SetTimer(2000, func() {
 })
 ```
 
+## 图标字体（iconfont）
+
+HTMLayout 按 GBK 解码 HTML，iconfont.cn 那种挂在 PUA（U+E000-U+F8FF）上的字体在页面上只会画出一个 `?`。
+框架把这件事接管了：resources.zip 里的 `iconfont.new.ttf` 是重写过 cmap 的那一份——每个图标除了 PUA
+原件，还多一个 GBK 解得开的 CJK 别名（U+5600-U+5946，共 358 个可用码位）。**页面里一行 CSS 就能用，不用写 Go 代码**：
+
+```html
+<style>
+    @font-face { font-family: 'iconfont'; src: url('resources://iconfont.new.ttf'); }
+    .icon { font-family: 'iconfont'; font-size: 20dip; }
+</style>
+
+<span class="icon">&#x5666;</span>   <!-- 写 CJK 别名码位，别写 U+E666 -->
+```
+
+自己下载的字体交给框架处理（补别名 + 换成唯一家族名 + 解出码位表）：
+
+```go
+f, _ := gohl.LoadIconfont(raw)   // raw 是 ttf/otf 字节
+uri := f.Serve("icon")           // 注册资源协议，返回 "icon://<家族名>.ttf"
+html := "<style>" + f.CSS(uri) + "</style>"
+
+for _, g := range f.Glyphs {     // 按码位升序，含 post 表里的图标名
+    fmt.Printf("U+%04X %s\n", g.Codepoint, g.Name)
+}
+```
+
+| API | 作用 |
+|------|------|
+| `gohl.LoadIconfont(data)` | 一步到位：补别名 + 唯一家族名 + 码位表，返回 `*Iconfont` |
+| `(*Iconfont).Serve(scheme)` / `.CSS(uri)` | 注册资源回调、生成 `@font-face` |
+| `gohl.BundledIconfont()` | 取内置那支（等价于 `LoadIconfont(ReadResource("iconfont.new.ttf"))`） |
+| `gohl.AliasIconfont(data)` | 只补别名不改名，打包资源时用这条 |
+| `gohl.GlyphsOf(data)` / `gohl.FontFamily(data)` | 只读码位表 / 只读自报家族名 |
+| `gohl.ReadResource(name)` | 从内嵌 resources.zip 直接取字节，不等释放到磁盘 |
+| `gohl.ResourceRequested(uri)` | 引擎到底来要过这个资源没有（图标不出图时先查这个） |
+
+两个必须唯一的坑：GDI 按**家族名**挑 face（同名第二份注册了也不生效），gohl 按 **URI** 缓存字节（同一 URI 只交付第一次那份）。
+`LoadIconfont` / `Serve` 已经把这两件事都处理掉了，换字体后整份文档重载即可（`gohl.LoadHtml(hwnd, doc, "")`）。
+
+## 框架工具
+
+```bash
+go run ./tools/iconpreview            # 浏览、挑取图标；点格子复制 HTML 写法，一键导出 Go 常量表
+go run ./tools/iconpreview my.ttf     # 换成看自己的字体
+go run ./tools/fontpack               # 把 testdata/iconfont.new.ttf 补好别名后写回 resources.zip
+```
+
+`fontpack` 只改写目标那一条目，其余字节原样保留，产出是确定的——内置字体从此可复现。
+
+## 开发文档（skill）
+
+`skill/` 是随框架一起发布的 AI 技能包，内容是在真实项目里踩出来的规则，也可直接当文档读：
+
+| 文件 | 内容 |
+|------|------|
+| `skill/SKILL.md` | 21 条关键规则（编码、布局、单位、DPI、图标字体、窗口关闭…）+ 快速上手 |
+| `skill/references/gohl-api.md` | Window / Element / Storage / Tray / 资源加载 / 图标字体 完整 API |
+| `skill/references/htmlayout-css.md` | HTMLayout 的 CSS 与标准 CSS3 的差异 |
+| `skill/references/templates.md` | 标题栏、弹窗、Toast、侧边栏等可复用模板 |
+| `skill/references/samples.md` | 官方示例索引：想知道"HTMLayout 支持 X 吗"先查这里 |
+
 ## 示例
 
 查看 [examples/demo.go](examples/demo.go) 获取完整示例。
@@ -228,6 +296,10 @@ build.bat
 - Windows 操作系统
 - Go 1.20
 - HTMLayout DLL (htmlayout.dll已经打包在Resources.zip中，会自动释放)
+
+resources.zip 释放到 `%APPDATA%\gohl`，通过 `resources://文件名` 引用。里面有 `htmlayout.dll`、
+`alibaba_puhui.ttf`、`iconfont.new.ttf`。释放是**逐文件按大小比对**的，所以新版本新增的文件在老用户
+机器上照样会落地，无需重装。
 
 ## 许可证
 
